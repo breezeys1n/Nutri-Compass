@@ -1,43 +1,253 @@
 package com.example.nutricompass;
 
 import android.os.Bundle;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.widget.Button;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
+import java.text.DecimalFormat;
 
 public class RecipeResultActivity extends AppCompatActivity {
+
+    private TextView tvRecipeName, tvRecipeDescription, tvRecipeReason, tvWeatherInfo;
+    private TextView tvRecipeNutrition, tvCookingTips, tvUserData;
+    private TextView tvPrepTimeValue, tvCookTimeValue, tvDifficultyValue;
+    private LinearLayout layoutIngredientsContainer, layoutStepsContainer;
+    private Button btnNextStep;
+    private UserProfile userProfile;
+    private DecimalFormat decimalFormat = new DecimalFormat("#.##");
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_recipe_result); // 对应第二步的布局文件
+        setContentView(R.layout.activity_recipe_result);
 
-        // 1. 接收从CameraActivity传递过来的数据
+        // 初始化用户信息
+        userProfile = new UserProfile(this);
+
+        // 初始化视图
+        initViews();
+
+        // 显示用户信息
+        displayUserInfo();
+
+        // 显示食谱信息
+        displayRecipeInfo();
+
+        // 设置按钮点击事件
+        setupButtonListeners();
+    }
+
+    private void initViews() {
+        tvRecipeName = findViewById(R.id.tv_recipe_name);
+        tvRecipeDescription = findViewById(R.id.tv_recipe_description);
+        tvRecipeReason = findViewById(R.id.tv_recipe_reason);
+        tvWeatherInfo = findViewById(R.id.tv_weather_info);
+        tvRecipeNutrition = findViewById(R.id.tv_recipe_nutrition);
+        tvCookingTips = findViewById(R.id.tv_cooking_tips);
+        tvUserData = findViewById(R.id.tv_user_data);
+        tvPrepTimeValue = findViewById(R.id.tv_prep_time_value);
+        tvCookTimeValue = findViewById(R.id.tv_cook_time_value);
+        tvDifficultyValue = findViewById(R.id.tv_difficulty_value);
+        layoutIngredientsContainer = findViewById(R.id.layout_ingredients_container);
+        layoutStepsContainer = findViewById(R.id.layout_steps_container);
+        btnNextStep = findViewById(R.id.btn_next_step);
+    }
+
+    private void displayUserInfo() {
+        StringBuilder userInfo = new StringBuilder("为您定制 | 目标: ");
+        userInfo.append(userProfile.getGoal());
+
+        if (userProfile.isProfileComplete()) {
+            userInfo.append(" | BMI: ").append(decimalFormat.format(userProfile.calculateBMI()));
+            userInfo.append(" (").append(getBMICategory(userProfile.calculateBMI())).append(")");
+        }
+
+        tvUserData.setText(userInfo.toString());
+    }
+
+    private String getBMICategory(double bmi) {
+        if (bmi < 18.5) return "体重偏轻";
+        else if (bmi < 24) return "正常范围";
+        else if (bmi < 28) return "超重";
+        else return "肥胖";
+    }
+
+    private void displayRecipeInfo() {
+        // 获取传递的数据
         String recipeName = getIntent().getStringExtra("recipe_name");
         String recipeReason = getIntent().getStringExtra("recipe_reason");
+        String recipeDescription = getIntent().getStringExtra("recipe_description");
         String recipeNutrition = getIntent().getStringExtra("recipe_nutrition");
+        String weatherInfo = getIntent().getStringExtra("recipe_weather");
+        String[] ingredients = getIntent().getStringArrayExtra("recipe_ingredients");
+        String[] steps = getIntent().getStringArrayExtra("recipe_steps");
+        String prepTime = getIntent().getStringExtra("recipe_prep_time");
+        String cookTime = getIntent().getStringExtra("recipe_cook_time");
+        String difficulty = getIntent().getStringExtra("recipe_difficulty");
+        String cookingTips = getIntent().getStringExtra("recipe_cooking_tips");
 
-        // 2. 初始化视图
-        TextView tvRecipeName = findViewById(R.id.tv_recipe_name);
-        TextView tvRecipeReason = findViewById(R.id.tv_recipe_reason);
-        TextView tvRecipeNutrition = findViewById(R.id.tv_recipe_nutrition);
-        TextView tvUserData = findViewById(R.id.tv_user_data); // 显示用户数据
+        // 设置基本信息
+        tvRecipeName.setText(recipeName != null ? recipeName : "智能食谱");
+        tvRecipeDescription.setText(recipeDescription != null ? recipeDescription : "为您量身定制的健康食谱");
+        tvRecipeReason.setText(recipeReason != null ? recipeReason : "根据您的健康目标和现有食材精心推荐");
 
-        // 3. 显示数据
-        tvRecipeName.setText(recipeName != null ? recipeName : "未获取到食谱");
-        tvRecipeReason.setText(recipeReason != null ? recipeReason : "等待AI分析...");
-        tvRecipeNutrition.setText(recipeNutrition != null ? "营养信息: " + recipeNutrition : "营养信息计算中...");
-
-        // 4. （可选）显示传递过来的用户数据，让结果更个性化
-        String userGoal = getIntent().getStringExtra("user_goal");
-        String userHeight = getIntent().getStringExtra("user_height");
-        String userWeight = getIntent().getStringExtra("user_weight");
-
-        if (userGoal != null) {
-            String userInfo = "为您定制 | 目标: " + userGoal;
-            if (userHeight != null && userWeight != null) {
-                userInfo += " | 身高体重: " + userHeight + "cm / " + userWeight + "kg";
-            }
-            tvUserData.setText(userInfo);
+        // 设置天气信息 - 这里添加带emoji的天气信息
+        if (weatherInfo != null && !weatherInfo.isEmpty()) {
+            tvWeatherInfo.setText("🌤️ " + weatherInfo);
+        } else {
+            tvWeatherInfo.setText("🌤️ 天气信息获取中...");
         }
+
+        // 设置营养信息
+        if (recipeNutrition != null && !recipeNutrition.isEmpty()) {
+            tvRecipeNutrition.setText(recipeNutrition);
+        } else {
+            // 计算默认营养信息
+            calculateAndDisplayDefaultNutrition();
+        }
+
+        // 设置烹饪小贴士
+        if (cookingTips != null && !cookingTips.isEmpty()) {
+            tvCookingTips.setText("💡 " + cookingTips);
+        } else {
+            tvCookingTips.setText("💡 小贴士：搭配一份绿叶蔬菜营养更均衡！");
+        }
+
+        // 设置时间信息
+        tvPrepTimeValue.setText(prepTime != null ? prepTime : "10分钟");
+        tvCookTimeValue.setText(cookTime != null ? cookTime : "15分钟");
+
+        // 设置难度信息
+        if (difficulty != null) {
+            tvDifficultyValue.setText(difficulty);
+        } else {
+            // 根据数字转换为文字
+            int difficultyNum = getIntent().getIntExtra("recipe_difficulty_num", 2);
+            tvDifficultyValue.setText(convertDifficultyToString(difficultyNum));
+        }
+
+        // 显示食材列表
+        displayIngredients(ingredients);
+
+        // 显示烹饪步骤
+        displayCookingSteps(steps);
+    }
+
+    private void calculateAndDisplayDefaultNutrition() {
+        // 根据用户目标计算默认营养值
+        String goal = userProfile.getGoal();
+        String defaultNutrition;
+
+        switch (goal) {
+            case "科学减脂":
+                defaultNutrition = "热量: 280大卡 | 蛋白质: 20g | 碳水: 25g | 脂肪: 12g";
+                break;
+            case "增肌塑形":
+                defaultNutrition = "热量: 380大卡 | 蛋白质: 30g | 碳水: 35g | 脂肪: 15g";
+                break;
+            case "控糖饮食":
+                defaultNutrition = "热量: 250大卡 | 蛋白质: 18g | 碳水: 15g | 脂肪: 10g";
+                break;
+            case "清淡调理":
+                defaultNutrition = "热量: 220大卡 | 蛋白质: 15g | 碳水: 20g | 脂肪: 8g";
+                break;
+            default:
+                defaultNutrition = "热量: 300大卡 | 蛋白质: 22g | 碳水: 28g | 脂肪: 14g";
+        }
+
+        tvRecipeNutrition.setText(defaultNutrition);
+    }
+
+    private String convertDifficultyToString(int difficulty) {
+        switch (difficulty) {
+            case 1: return "简单";
+            case 2: return "中等";
+            case 3: return "复杂";
+            default: return "中等";
+        }
+    }
+
+    private void displayIngredients(String[] ingredients) {
+        // 清空容器
+        layoutIngredientsContainer.removeAllViews();
+
+        if (ingredients != null && ingredients.length > 0) {
+            // 移除占位符
+            TextView placeholder = findViewById(R.id.tv_ingredients_placeholder);
+            if (placeholder != null) {
+                layoutIngredientsContainer.removeView(placeholder);
+            }
+
+            // 动态添加食材项
+            for (String ingredient : ingredients) {
+                View ingredientItem = LayoutInflater.from(this)
+                        .inflate(R.layout.item_ingredient, layoutIngredientsContainer, false);
+
+                TextView tvIngredient = ingredientItem.findViewById(R.id.tv_ingredient);
+                tvIngredient.setText("• " + ingredient);
+
+                layoutIngredientsContainer.addView(ingredientItem);
+            }
+        } else {
+            // 显示默认食材
+            TextView tvDefault = new TextView(this);
+            tvDefault.setText("• 番茄 2个\n• 鸡蛋 3个\n• 橄榄油 10毫升\n• 盐 3克");
+            tvDefault.setTextSize(16);
+            tvDefault.setTextColor(getResources().getColor(android.R.color.darker_gray));
+            tvDefault.setLineSpacing(8, 1);
+            layoutIngredientsContainer.addView(tvDefault);
+        }
+    }
+
+    private void displayCookingSteps(String[] steps) {
+        // 清空容器
+        layoutStepsContainer.removeAllViews();
+
+        if (steps != null && steps.length > 0) {
+            // 移除占位符
+            TextView placeholder = findViewById(R.id.tv_steps_placeholder);
+            if (placeholder != null) {
+                layoutStepsContainer.removeView(placeholder);
+            }
+
+            // 动态添加步骤项
+            for (int i = 0; i < steps.length; i++) {
+                View stepItem = LayoutInflater.from(this)
+                        .inflate(R.layout.item_cooking_step, layoutStepsContainer, false);
+
+                TextView tvStepNumber = stepItem.findViewById(R.id.tv_step_number);
+                TextView tvStepDescription = stepItem.findViewById(R.id.tv_step_description);
+
+                tvStepNumber.setText(String.valueOf(i + 1));
+                tvStepDescription.setText(steps[i]);
+
+                layoutStepsContainer.addView(stepItem);
+            }
+        } else {
+            // 显示默认步骤
+            TextView tvDefault = new TextView(this);
+            tvDefault.setText("1. 番茄洗净切块，鸡蛋打散备用\n" +
+                    "2. 热锅加入少量橄榄油，倒入蛋液翻炒\n" +
+                    "3. 加入番茄块翻炒出汁\n" +
+                    "4. 加入适量盐调味，翻炒均匀");
+            tvDefault.setTextSize(16);
+            tvDefault.setTextColor(getResources().getColor(android.R.color.darker_gray));
+            tvDefault.setLineSpacing(8, 1);
+            layoutStepsContainer.addView(tvDefault);
+        }
+    }
+
+    private void setupButtonListeners() {
+        btnNextStep.setOnClickListener(v -> {
+            // TODO: 跳转到烹饪指导页面
+            // Intent intent = new Intent(RecipeResultActivity.this, CookingGuideActivity.class);
+            // startActivity(intent);
+
+            // 暂时显示提示
+            tvCookingTips.setText("💡 烹饪指导功能正在开发中，即将上线！");
+        });
     }
 }

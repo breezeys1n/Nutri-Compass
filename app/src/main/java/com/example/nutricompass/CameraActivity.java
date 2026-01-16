@@ -18,7 +18,8 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import java.io.ByteArrayOutputStream;
-
+import java.util.ArrayList;
+import java.util.List;
 public class CameraActivity extends AppCompatActivity {
 
     // 定义请求码常量
@@ -154,23 +155,80 @@ public class CameraActivity extends AppCompatActivity {
     }
 
     private void callAIRecipeAPI(String imageBase64, String goal, String height, String weight) {
-        // 模拟网络请求延迟
-        new android.os.Handler().postDelayed(() -> {
-            String simulatedRecipe = "番茄炒蛋 (定制版)";
-            String simulatedReason = "识别到番茄和鸡蛋。针对您的 [" + goal + "] 目标，建议少放油盐，补充优质蛋白。";
-            String simulatedNutrition = "220大卡 | 蛋白15g | 碳水10g";
+        // 获取用户信息
+        UserProfile userProfile = new UserProfile(this);
 
-            Intent resultIntent = new Intent(CameraActivity.this, RecipeResultActivity.class);
-            resultIntent.putExtra("recipe_name", simulatedRecipe);
-            resultIntent.putExtra("recipe_reason", simulatedReason);
-            resultIntent.putExtra("recipe_nutrition", simulatedNutrition);
+        // 获取用户状态（可以扩展让用户输入）
+        String userCondition = "正常"; // 默认状态，后续可以让用户选择
 
-            // 将用户信息透传给结果页，用于展示
-            resultIntent.putExtra("user_goal", goal);
-            resultIntent.putExtra("user_height", height);
-            resultIntent.putExtra("user_weight", weight);
+        // 调用AI分析服务
+        new Thread(() -> {
+            try {
+                // 这里调用真正的AI服务
+                RecipeAnalyzer analyzer = new RecipeAnalyzer(this);
+                Recipe recipe = analyzer.analyzeRecipe(imageBase64, goal, userCondition);
 
-            startActivity(resultIntent);
-        }, 2000);
+                // 切换到主线程更新UI
+                runOnUiThread(() -> {
+                    if (recipe != null) {
+                        // 跳转到结果页面
+                        Intent resultIntent = new Intent(CameraActivity.this, RecipeResultActivity.class);
+
+                        // 传递完整的食谱数据
+                        resultIntent.putExtra("recipe_name", recipe.getName());
+                        resultIntent.putExtra("recipe_description", recipe.getDescription());
+                        resultIntent.putExtra("recipe_reason", recipe.getReason());
+                        resultIntent.putExtra("recipe_weather", recipe.getWeatherCondition());
+                        resultIntent.putExtra("recipe_nutrition", recipe.getBriefNutrition());
+
+                        // 传递食材数组
+                        if (recipe.getIngredients() != null && !recipe.getIngredients().isEmpty()) {
+                            resultIntent.putExtra("recipe_ingredients",
+                                    recipe.getIngredients().toArray(new String[0]));
+                        }
+
+                        // 传递烹饪步骤数组
+                        if (recipe.getCookingSteps() != null && !recipe.getCookingSteps().isEmpty()) {
+                            // 过滤掉小贴士
+                            List<String> steps = new ArrayList<>();
+                            for (String step : recipe.getCookingSteps()) {
+                                if (!step.contains("烹饪小贴士") && !step.contains("小贴士：")) {
+                                    steps.add(step);
+                                }
+                            }
+                            resultIntent.putExtra("recipe_steps", steps.toArray(new String[0]));
+
+                            // 提取小贴士
+                            for (String step : recipe.getCookingSteps()) {
+                                if (step.contains("烹饪小贴士") || step.contains("小贴士：")) {
+                                    String tips = step.replace("烹饪小贴士:", "")
+                                            .replace("小贴士：", "")
+                                            .trim();
+                                    resultIntent.putExtra("recipe_cooking_tips", tips);
+                                    break;
+                                }
+                            }
+                        }
+
+                        // 传递时间信息
+                        resultIntent.putExtra("recipe_prep_time", recipe.getPreparationTime());
+                        resultIntent.putExtra("recipe_cook_time", recipe.getCookingTime());
+                        resultIntent.putExtra("recipe_difficulty_num", recipe.getDifficulty());
+
+                        startActivity(resultIntent);
+                    } else {
+                        Toast.makeText(CameraActivity.this, "AI分析失败，请重试", Toast.LENGTH_SHORT).show();
+                        btnConfirmPhoto.setEnabled(true);
+                    }
+                });
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                runOnUiThread(() -> {
+                    Toast.makeText(CameraActivity.this, "网络连接失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    btnConfirmPhoto.setEnabled(true);
+                });
+            }
+        }).start();
     }
 }
