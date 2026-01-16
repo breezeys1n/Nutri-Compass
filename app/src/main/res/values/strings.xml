@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">膳愈AI</string>
+
+    <string-array name="goals_array">
+        <item>科学减脂</item>
+        <item>增肌塑形</item>
+        <item>控糖饮食</item>
+        <item>低嘌呤（痛风预防）</item>
+        <item>清淡调理</item>
+    </string-array>
+</resources>
