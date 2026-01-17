@@ -31,6 +31,7 @@ android {
             buildConfigField("String", "BAIDU_API_KEY", "\"${localProperties.getProperty('BAIDU_API_KEY', '')}\"")
             buildConfigField("String", "BAIDU_SECRET_KEY", "\"${localProperties.getProperty('BAIDU_SECRET_KEY', '')}\"")
             buildConfigField("String", "DEEPSEEK_API_KEY", "\"${localProperties.getProperty('DEEPSEEK_API_KEY', '')}\"")
+            buildConfigField("String", "QWEATHER_API_KEY", "\"${localProperties.getProperty('QWEATHER_API_KEY', '')}\"")
         }
 
         release {
@@ -44,10 +45,14 @@ android {
             buildConfigField("String", "BAIDU_API_KEY", "\"${localProperties.getProperty('BAIDU_API_KEY', '')}\"")
             buildConfigField("String", "BAIDU_SECRET_KEY", "\"${localProperties.getProperty('BAIDU_SECRET_KEY', '')}\"")
             buildConfigField("String", "DEEPSEEK_API_KEY", "\"${localProperties.getProperty('DEEPSEEK_API_KEY', '')}\"")
+            buildConfigField("String", "QWEATHER_API_KEY", "\"${localProperties.getProperty('QWEATHER_API_KEY', '')}\"")
 
             minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
+    }
+    buildFeatures {
+        buildConfig = true
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_11

@@ -97,21 +97,33 @@ public class RecipeAnalyzer {
     /**
      * 获取天气信息
      */
+    // RecipeAnalyzer.java 内部的 getWeatherInfo 方法
     private String getWeatherInfo() {
         try {
-            // 这里可以调用天气API，例如：
-            // 1. 和风天气：https://dev.qweather.com/
-            // 2. 心知天气：https://www.seniverse.com/
-            // 暂时返回模拟数据
+            // 1. 获取当前实时经纬度 (如 "118.86,37.95")
+            String coords = LocationHelper.getCoordinates(context);
+            Log.d(TAG, "当前坐标: " + coords);
 
-            // 调用天气API的示例（需要添加网络权限和相应的API密钥）
-            // return getWeatherFromAPI();
+            // 2. 调用 WeatherProvider 的 fetchWeather 方法获取高德原始 JSON
+            String weatherRawJson = com.example.nutricompass.provider.WeatherProvider.fetchWeather(coords);
 
-            return "晴朗，25°C，湿度60%，适合清爽饮食";
+            // 3. 解析高德原始 JSON 提取 AI 需要的文本描述
+            if (weatherRawJson != null && weatherRawJson.contains("lives")) {
+                JSONObject json = new JSONObject(weatherRawJson);
+                // 高德 lives 是一个数组，取第一个
+                JSONObject live = json.getJSONArray("lives").getJSONObject(0);
+
+                // 提取：城市, 天气现象, 温度
+                return live.getString("city") + ", " +
+                        live.getString("weather") + ", " +
+                        live.getString("temperature") + "℃";
+            }
         } catch (Exception e) {
-            Log.e(TAG, "获取天气失败: " + e.getMessage());
-            return "天气：适宜";
+            Log.e(TAG, "动态天气获取解析失败: " + e.getMessage());
         }
+
+        // 如果上面流程失败，返回一个基础保底信息，确保 AI 提示词不为空
+        return "保底：天气晴朗";
     }
 
     /**
