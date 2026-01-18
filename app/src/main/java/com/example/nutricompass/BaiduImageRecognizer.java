@@ -22,7 +22,7 @@ public class BaiduImageRecognizer {
     private static final String API_KEY = BuildConfig.BAIDU_API_KEY;
     private static final String SECRET_KEY = BuildConfig.BAIDU_SECRET_KEY;
 
-    private static final String DISH_RECOGNITION_URL = "https://aip.baidubce.com/rest/2.0/image-classify/v2/dish";
+    private static final String OBJECT_RECOGNITION_URL = "https://aip.baidubce.com/rest/2.0/image-classify/v2/advanced_general";
     private static final String ACCESS_TOKEN_URL = "https://aip.baidubce.com/oauth/2.0/token";
 
     private Context context;
@@ -52,7 +52,7 @@ public class BaiduImageRecognizer {
             }
 
             // 2. 调用菜品识别API
-            String result = callDishRecognitionAPI(imageBase64, token);
+            String result = callObjectRecognitionAPI(imageBase64, token);
             Log.d(TAG, "百度AI返回结果: " + result.substring(0, Math.min(200, result.length())));
 
             // 3. 解析结果
@@ -117,18 +117,15 @@ public class BaiduImageRecognizer {
     /**
      * 调用菜品识别API
      */
-    private String callDishRecognitionAPI(String imageBase64, String accessToken) throws Exception {
-        String urlStr = DISH_RECOGNITION_URL + "?access_token=" + accessToken;
+    private String callObjectRecognitionAPI(String imageBase64, String accessToken) throws Exception {
+        String urlStr = OBJECT_RECOGNITION_URL + "?access_token=" + accessToken;
 
-        // 移除Base64前缀（如果有）
         if (imageBase64.contains(",")) {
             imageBase64 = imageBase64.split(",")[1];
         }
 
-        // 构建请求参数
         String params = "image=" + URLEncoder.encode(imageBase64, "UTF-8") +
-                "&top_num=10" +  // 返回最多10个结果
-                "&filter_threshold=0.7"; // 过滤置信度低于0.7的结果
+                "&baike_num=1";  // 获取百科信息，有助于识别
 
         URL url = new URL(urlStr);
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -139,19 +136,17 @@ public class BaiduImageRecognizer {
         conn.setConnectTimeout(15000);
         conn.setReadTimeout(15000);
 
-        // 发送请求
         try (OutputStream os = conn.getOutputStream()) {
             byte[] input = params.getBytes("UTF-8");
             os.write(input, 0, input.length);
         }
 
-        // 获取响应
         int responseCode = conn.getResponseCode();
         if (responseCode == 200) {
             return readStream(conn.getInputStream());
         } else {
             String error = readStream(conn.getErrorStream());
-            throw new Exception("识别API调用失败: " + responseCode + " - " + error);
+            throw new Exception("物体识别API调用失败: " + responseCode + " - " + error);
         }
     }
 
@@ -163,6 +158,7 @@ public class BaiduImageRecognizer {
 
         try {
             JSONObject json = new JSONObject(jsonResult);
+            Log.d(TAG, "百度AI原始响应: " + jsonResult.substring(0, Math.min(500, jsonResult.length())));
 
             if (json.has("error_code")) {
                 int errorCode = json.getInt("error_code");
@@ -172,23 +168,48 @@ public class BaiduImageRecognizer {
             }
 
             if (!json.has("result") || json.isNull("result")) {
-                Log.w(TAG, "未识别到任何菜品");
+                Log.w(TAG, "未识别到任何物体");
                 return getDefaultFoodItems();
             }
 
             JSONArray results = json.getJSONArray("result");
-            Log.d(TAG, "识别到 " + results.length() + " 个菜品");
+            Log.d(TAG, "识别到 " + results.length() + " 个物体");
 
-            // 分析每个菜品，提取食材
+            // 解析每个物体结果 - 适配新格式
             for (int i = 0; i < results.length(); i++) {
-                JSONObject dish = results.getJSONObject(i);
-                String dishName = dish.getString("name");
-                double probability = dish.has("probability") ? dish.getDouble("probability") : 0.8;
+                JSONObject object = results.getJSONObject(i);
 
-                Log.d(TAG, "菜品 " + (i+1) + ": " + dishName + " (置信度: " + probability + ")");
+                String keyword = "";
+                double score = 0.0;
+                String root = "";
 
-                // 根据菜品名提取常见食材
-                extractIngredientsFromDishName(dishName, probability, items);
+                // 通用物体识别API返回的字段
+                if (object.has("keyword")) {
+                    keyword = object.getString("keyword");
+                }
+                if (object.has("score")) {
+                    score = object.getDouble("score");
+                }
+                if (object.has("root")) {
+                    root = object.getString("root");
+                }
+
+                Log.d(TAG, "物体 " + (i+1) + ": " + keyword + " (类别: " + root + ", 置信度: " + score + ")");
+
+                // 过滤出食材相关的物体
+                if (isFoodItem(keyword, root)) {
+                    // 转换食材名称（如"鸡蛋" -> "鸡蛋"）
+                    String foodName = normalizeFoodName(keyword);
+                    double quantity = estimateQuantityFromObject(foodName, score);
+                    String unit = getFoodUnit(foodName);
+
+                    FoodItem foodItem = new FoodItem(foodName, score, quantity, unit);
+                    items.add(foodItem);
+
+                    Log.d(TAG, "✅ 提取为食材: " + foodName + " (" + quantity + unit + ")");
+                } else {
+                    Log.d(TAG, "❌ 忽略非食材: " + keyword);
+                }
             }
 
             // 如果没提取到食材，使用默认值
@@ -197,8 +218,7 @@ public class BaiduImageRecognizer {
                 return getDefaultFoodItems();
             }
 
-            // 去重（同一种食材取最高置信度）
-            items = deduplicateFoodItems(items);
+            Log.d(TAG, "最终提取到 " + items.size() + " 种食材");
 
         } catch (Exception e) {
             Log.e(TAG, "解析识别结果失败: " + e.getMessage(), e);
@@ -209,122 +229,153 @@ public class BaiduImageRecognizer {
     }
 
     /**
-     * 从菜品名中提取食材
+     * 判断是否为食材
      */
-    private void extractIngredientsFromDishName(String dishName, double confidence, List<FoodItem> items) {
-        // 常见食材关键词映射
-        String lowerName = dishName.toLowerCase();
-
-        // 蔬菜类
-        if (lowerName.contains("番茄") || lowerName.contains("西红柿") || lowerName.contains("tomato")) {
-            items.add(new FoodItem("番茄", confidence, estimateQuantity("番茄", dishName), "个"));
-        }
-        if (lowerName.contains("鸡蛋") || lowerName.contains("蛋") || lowerName.contains("egg")) {
-            items.add(new FoodItem("鸡蛋", confidence, estimateQuantity("鸡蛋", dishName), "个"));
-        }
-        if (lowerName.contains("洋葱") || lowerName.contains("onion")) {
-            items.add(new FoodItem("洋葱", confidence, estimateQuantity("洋葱", dishName), "个"));
-        }
-        if (lowerName.contains("青椒") || lowerName.contains("辣椒") || lowerName.contains("pepper")) {
-            items.add(new FoodItem("青椒", confidence, estimateQuantity("青椒", dishName), "个"));
-        }
-        if (lowerName.contains("土豆") || lowerName.contains("马铃薯") || lowerName.contains("potato")) {
-            items.add(new FoodItem("土豆", confidence, estimateQuantity("土豆", dishName), "个"));
-        }
-        if (lowerName.contains("胡萝卜") || lowerName.contains("carrot")) {
-            items.add(new FoodItem("胡萝卜", confidence, estimateQuantity("胡萝卜", dishName), "根"));
-        }
-        if (lowerName.contains("白菜") || lowerName.contains("青菜") || lowerName.contains("cabbage")) {
-            items.add(new FoodItem("青菜", confidence, estimateQuantity("青菜", dishName), "颗"));
-        }
-        if (lowerName.contains("蘑菇") || lowerName.contains("香菇") || lowerName.contains("mushroom")) {
-            items.add(new FoodItem("蘑菇", confidence, estimateQuantity("蘑菇", dishName), "个"));
+    private boolean isFoodItem(String keyword, String root) {
+        if (keyword == null || keyword.isEmpty()) {
+            return false;
         }
 
-        // 肉类
-        if (lowerName.contains("鸡肉") || lowerName.contains("鸡") || lowerName.contains("chicken")) {
-            items.add(new FoodItem("鸡肉", confidence, estimateQuantity("鸡肉", dishName), "克"));
-        }
-        if (lowerName.contains("猪肉") || lowerName.contains("肉") || lowerName.contains("pork")) {
-            items.add(new FoodItem("猪肉", confidence, estimateQuantity("猪肉", dishName), "克"));
-        }
-        if (lowerName.contains("牛肉") || lowerName.contains("beef")) {
-            items.add(new FoodItem("牛肉", confidence, estimateQuantity("牛肉", dishName), "克"));
-        }
-        if (lowerName.contains("鱼") || lowerName.contains("fish")) {
-            items.add(new FoodItem("鱼肉", confidence, estimateQuantity("鱼肉", dishName), "克"));
+        String lowerKeyword = keyword.toLowerCase();
+        String lowerRoot = root != null ? root.toLowerCase() : "";
+
+        // 根据root类别判断
+        if (lowerRoot.contains("食材") || lowerRoot.contains("食品") ||
+                lowerRoot.contains("水果") || lowerRoot.contains("蔬菜")) {
+            return true;
         }
 
-        // 其他
-        if (lowerName.contains("米饭") || lowerName.contains("rice")) {
-            items.add(new FoodItem("米饭", confidence, estimateQuantity("米饭", dishName), "碗"));
+        // 根据关键词判断
+        String[] foodKeywords = {
+                "鸡蛋", "蛋", "egg", "鸡", "鸡肉", "猪", "猪肉", "牛", "牛肉",
+                "鱼", "虾", "蟹", "豆腐", "米饭", "面条", "面包", "牛奶",
+                "番茄", "西红柿", "洋葱", "青椒", "土豆", "胡萝卜", "白菜",
+                "青菜", "蘑菇", "黄瓜", "茄子", "西兰花", "菠菜", "芹菜"
+        };
+
+        for (String food : foodKeywords) {
+            if (lowerKeyword.contains(food)) {
+                return true;
+            }
         }
-        if (lowerName.contains("面条") || lowerName.contains("noodle")) {
-            items.add(new FoodItem("面条", confidence, estimateQuantity("面条", dishName), "克"));
+
+        return false;
+    }
+
+    /**
+     * 标准化食材名称
+     */
+    private String normalizeFoodName(String keyword) {
+        String lowerKeyword = keyword.toLowerCase();
+
+        // 食材名称映射
+        if (lowerKeyword.contains("鸡蛋") || lowerKeyword.contains("蛋")) {
+            return "鸡蛋";
+        } else if (lowerKeyword.contains("番茄") || lowerKeyword.contains("西红柿")) {
+            return "番茄";
+        } else if (lowerKeyword.contains("鸡") && lowerKeyword.contains("肉")) {
+            return "鸡肉";
+        } else if (lowerKeyword.contains("猪") && lowerKeyword.contains("肉")) {
+            return "猪肉";
+        } else if (lowerKeyword.contains("牛") && lowerKeyword.contains("肉")) {
+            return "牛肉";
+        } else if (lowerKeyword.contains("米饭") || lowerKeyword.contains("米")) {
+            return "米饭";
+        } else if (lowerKeyword.contains("面条") || lowerKeyword.contains("面")) {
+            return "面条";
+        } else if (lowerKeyword.contains("面包")) {
+            return "面包";
+        } else if (lowerKeyword.contains("牛奶")) {
+            return "牛奶";
+        } else if (lowerKeyword.contains("豆腐")) {
+            return "豆腐";
+        } else if (lowerKeyword.contains("洋葱")) {
+            return "洋葱";
+        } else if (lowerKeyword.contains("青椒")) {
+            return "青椒";
+        } else if (lowerKeyword.contains("土豆")) {
+            return "土豆";
+        } else if (lowerKeyword.contains("胡萝卜")) {
+            return "胡萝卜";
+        } else if (lowerKeyword.contains("白菜")) {
+            return "白菜";
+        } else if (lowerKeyword.contains("青菜")) {
+            return "青菜";
+        } else if (lowerKeyword.contains("蘑菇")) {
+            return "蘑菇";
         }
-        if (lowerName.contains("豆腐") || lowerName.contains("tofu")) {
-            items.add(new FoodItem("豆腐", confidence, estimateQuantity("豆腐", dishName), "块"));
+
+        // 默认返回原名称（去掉可能的后缀）
+        return keyword.replace("(食材)", "").replace("(食品)", "").trim();
+    }
+
+    /**
+     * 根据物体估计食材数量
+     */
+    private double estimateQuantityFromObject(String foodName, double score) {
+        // 根据置信度调整数量估计
+        double baseQuantity = getBaseQuantity(foodName);
+
+        // 置信度越高，估计越准确
+        if (score > 0.7) {
+            return baseQuantity;
+        } else if (score > 0.5) {
+            return baseQuantity * 0.8; // 减少估计值
+        } else {
+            return baseQuantity * 0.5; // 显著减少
         }
     }
 
     /**
-     * 估计食材数量（基于菜品名）
+     * 获取食材基础数量
      */
-    private double estimateQuantity(String ingredient, String dishName) {
-        // 简单规则估计数量
-        switch (ingredient) {
-            case "番茄":
+    private double getBaseQuantity(String foodName) {
+        switch (foodName) {
             case "鸡蛋":
+                return 2.0;
+            case "番茄":
+            case "西红柿":
+                return 2.0;
             case "洋葱":
-            case "青椒":
-            case "土豆":
-            case "胡萝卜":
-                return 2.0; // 默认2个
+                return 1.0;
             case "鸡肉":
             case "猪肉":
             case "牛肉":
-            case "鱼肉":
-            case "面条":
-                return 150.0; // 默认150克
-            case "青菜":
-                return 1.0; // 默认1颗
-            case "蘑菇":
-                return 5.0; // 默认5个
-            case "豆腐":
-                return 1.0; // 默认1块
+                return 150.0;
             case "米饭":
-                return 1.0; // 默认1碗
+                return 200.0;
+            case "面条":
+                return 150.0;
+            case "豆腐":
+                return 1.0; // 块
+            case "牛奶":
+                return 250.0; // ml
+            case "面包":
+                return 2.0; // 片
             default:
-                return 1.0;
+                return 100.0; // 默认100克
         }
     }
 
     /**
-     * 食材去重
+     * 获取食材单位
      */
-    private List<FoodItem> deduplicateFoodItems(List<FoodItem> items) {
-        List<FoodItem> deduplicated = new ArrayList<>();
-
-        for (FoodItem item : items) {
-            boolean found = false;
-            for (FoodItem existing : deduplicated) {
-                if (existing.getName().equals(item.getName())) {
-                    // 保留置信度更高的
-                    if (item.getConfidence() > existing.getConfidence()) {
-                        existing.setConfidence(item.getConfidence());
-                    }
-                    // 合并数量
-                    existing.setQuantity(existing.getQuantity() + item.getQuantity());
-                    found = true;
-                    break;
-                }
-            }
-            if (!found) {
-                deduplicated.add(item);
-            }
+    private String getFoodUnit(String foodName) {
+        if (foodName.contains("鸡蛋") || foodName.contains("番茄") ||
+                foodName.contains("洋葱") || foodName.contains("面包") ||
+                foodName.contains("豆腐")) {
+            return "个";
+        } else if (foodName.contains("鸡肉") || foodName.contains("猪肉") ||
+                foodName.contains("牛肉") || foodName.contains("米饭") ||
+                foodName.contains("面条")) {
+            return "克";
+        } else if (foodName.contains("牛奶")) {
+            return "毫升";
+        } else if (foodName.contains("白菜") || foodName.contains("青菜")) {
+            return "颗";
+        } else {
+            return "克";
         }
-
-        return deduplicated;
     }
 
     /**
