@@ -1,3 +1,4 @@
+
 package com.example.nutricompass;
 
 import android.content.Intent;
@@ -197,8 +198,21 @@ public class CameraActivity extends AppCompatActivity {
     }
 
     private String convertBitmapToBase64(Bitmap bitmap) {
+        // 1. 强制降到 512 像素。复杂图片的细节会减少，但特征依然明显
+        int maxSize = 512;
+        int width = bitmap.getWidth();
+        int height = bitmap.getHeight();
+        float ratio = Math.min((float) maxSize / width, (float) maxSize / height);
+        Bitmap resized = Bitmap.createScaledBitmap(bitmap, (int)(width * ratio), (int)(height * ratio), true);
+
+        // 2. 质量降到 40%。这能大幅度缩减复杂背景产生的冗余数据
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        bitmap.compress(Bitmap.CompressFormat.JPEG, 80, out);
-        return Base64.encodeToString(out.toByteArray(), Base64.DEFAULT);
+        resized.compress(Bitmap.CompressFormat.JPEG, 40, out);
+        byte[] byteArray = out.toByteArray();
+
+        // 3. 监控：现在即使是塞满蔬菜的图，长度也应该在 30,000 - 50,000 左右
+        Log.d(TAG, "🚀 极度压缩后 Base64 长度: " + byteArray.length);
+
+        return Base64.encodeToString(byteArray, Base64.NO_WRAP);
     }
 }
