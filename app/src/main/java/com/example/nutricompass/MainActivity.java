@@ -76,11 +76,11 @@ public class MainActivity extends AppCompatActivity {
     private boolean checkAndRequestPermissions() {
         List<String> listPermissionsNeeded = new ArrayList<>();
 
-        // 基础权限：相机、定位
+        // 基础权限：相机、定位、录音
         listPermissionsNeeded.add(Manifest.permission.CAMERA);
         listPermissionsNeeded.add(Manifest.permission.ACCESS_FINE_LOCATION);
         listPermissionsNeeded.add(Manifest.permission.ACCESS_COARSE_LOCATION);
-
+        listPermissionsNeeded.add(Manifest.permission.RECORD_AUDIO);
         // 相册读取权限 (适配 Android 13+)
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
             listPermissionsNeeded.add(Manifest.permission.READ_MEDIA_IMAGES);

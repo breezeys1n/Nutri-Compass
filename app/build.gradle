@@ -60,6 +60,13 @@ android {
     }
 }
 
+configurations.all {
+    resolutionStrategy {
+        // 强制所有依赖都使用指定版本的 jna，并优先选择 'jar' 格式
+        force 'net.java.dev.jna:jna:5.18.1'
+
+    }
+}
 dependencies {
     implementation libs.appcompat
     implementation libs.material
@@ -76,4 +83,6 @@ dependencies {
 
     // 或者使用org.json
     implementation 'org.json:json:20210307'
+
+    implementation 'com.alphacephei:vosk-android:0.3.47'
 }

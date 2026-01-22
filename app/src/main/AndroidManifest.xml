@@ -10,6 +10,7 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
 
     <uses-feature android:name="android.hardware.camera" android:required="false" />
@@ -31,6 +32,8 @@
             android:name=".RecipeResultActivity"
             android:exported="false"
             android:theme="@style/Theme.NutriCompass" />
+        <activity android:name=".TalkWithAIActivity"
+            android:exported="false"/>
         <activity
             android:name=".MainActivity"
             android:exported="true">

@@ -58,5 +58,9 @@
         android:text="✅ 确认并开始AI识别"
         android:enabled="false"
         android:backgroundTint="#9E9E9E"/>
-
+    <Button
+        android:id="@+id/btn_talk_with_ai"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="AI语音界面" />
 </LinearLayout>
