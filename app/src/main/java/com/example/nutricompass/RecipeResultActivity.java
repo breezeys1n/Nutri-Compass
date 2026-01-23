@@ -8,7 +8,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
 import java.text.DecimalFormat;
-
+import java.util.List;
 public class RecipeResultActivity extends AppCompatActivity {
 
     private TextView tvRecipeName, tvRecipeDescription, tvRecipeReason, tvWeatherInfo;
@@ -34,12 +34,66 @@ public class RecipeResultActivity extends AppCompatActivity {
         displayUserInfo();
 
         // 显示食谱信息
-        displayRecipeInfo();
+        Recipe recipe = (Recipe) getIntent().getSerializableExtra("recipe");
+        if (recipe != null) {
+            // 如果传递了完整的 Recipe 对象
+            displayRecipeFromObject(recipe);
+        } else {
+            // 原来的逻辑，通过 Intent extras 获取数据
+            displayRecipeInfo();
+        }
 
         // 设置按钮点击事件
         setupButtonListeners();
     }
+    /**
+     * 从 Recipe 对象显示食谱信息
+     */
+    private void displayRecipeFromObject(Recipe recipe) {
+        // 设置基本信息
+        tvRecipeName.setText(recipe.getName() != null ? recipe.getName() : "智能食谱");
+        tvRecipeDescription.setText(recipe.getDescription() != null ? recipe.getDescription() : "为您量身定制的健康食谱");
+        tvRecipeReason.setText(recipe.getReason() != null ? recipe.getReason() : "根据您的健康目标和现有食材精心推荐");
 
+        // 设置天气信息
+        if (recipe.getWeatherCondition() != null && !recipe.getWeatherCondition().isEmpty()) {
+            tvWeatherInfo.setText("🌤️ " + recipe.getWeatherCondition());
+        } else {
+            tvWeatherInfo.setText("🌤️ 天气信息获取中...");
+        }
+
+        // 设置营养信息
+        if (recipe.getNutrition() != null) {
+            tvRecipeNutrition.setText(recipe.getBriefNutrition());
+        } else {
+            // 从calories字段生成简要营养信息
+            if (recipe.getCalories() > 0) {
+                tvRecipeNutrition.setText(String.format("热量: %d大卡", recipe.getCalories()));
+            } else {
+                calculateAndDisplayDefaultNutrition();
+            }
+        }
+
+        // 设置烹饪小贴士 - 如果有的话
+        // tvCookingTips.setText("💡 " + recipe.getCookingTips()); // 如果需要可以添加这个字段
+
+        // 设置时间信息
+        tvPrepTimeValue.setText(recipe.getPreparationTime() != null ? recipe.getPreparationTime() : "10分钟");
+        tvCookTimeValue.setText(recipe.getCookingTime() != null ? recipe.getCookingTime() : "15分钟");
+
+        // 设置难度信息
+        tvDifficultyValue.setText(convertDifficultyToString(recipe.getDifficulty()));
+
+        // 显示食材列表
+        List<String> ingredientsList = recipe.getIngredients();
+        String[] ingredientsArray = ingredientsList.toArray(new String[0]);
+        displayIngredients(ingredientsArray);
+
+        // 显示烹饪步骤
+        List<String> stepsList = recipe.getCookingSteps();
+        String[] stepsArray = stepsList.toArray(new String[0]);
+        displayCookingSteps(stepsArray);
+    }
     private void initViews() {
         tvRecipeName = findViewById(R.id.tv_recipe_name);
         tvRecipeDescription = findViewById(R.id.tv_recipe_description);
@@ -134,8 +188,77 @@ public class RecipeResultActivity extends AppCompatActivity {
 
         // 显示烹饪步骤
         displayCookingSteps(steps);
-    }
 
+        //保存历史信息
+        saveRecipeToHistory(recipeName, recipeDescription, recipeReason,
+                recipeNutrition, ingredients, steps, prepTime,
+                cookTime, difficulty, cookingTips);
+    }
+    private void saveRecipeToHistory(String recipeName, String recipeDescription,
+                                     String recipeReason, String recipeNutrition,
+                                     String[] ingredients, String[] steps,
+                                     String prepTime, String cookTime,
+                                     String difficulty, String cookingTips) {
+
+        // 创建 Recipe 对象
+        Recipe recipe = new Recipe();
+        recipe.setTitle(recipeName != null ? recipeName : "智能食谱");
+        recipe.setDescription(recipeDescription != null ? recipeDescription : "为您量身定制的健康食谱");
+        recipe.setReason(recipeReason != null ? recipeReason : "根据您的健康目标和现有食材精心推荐");
+
+        // 设置其他信息
+        if (ingredients != null) {
+            for (String ingredient : ingredients) {
+                recipe.addIngredient(ingredient);
+            }
+        }
+
+        if (steps != null) {
+            for (String step : steps) {
+                recipe.addCookingStep(step);
+            }
+        }
+        recipe.setPreparationTime(prepTime);
+        recipe.setCookingTime(cookTime);
+
+        // 转换难度字符串为数字
+        if (difficulty != null) {
+            if (difficulty.contains("简单")) recipe.setDifficulty(1);
+            else if (difficulty.contains("复杂")) recipe.setDifficulty(3);
+            else recipe.setDifficulty(2);
+        }
+        // 设置营养信息
+        if (recipeNutrition != null && recipeNutrition.contains("大卡")) {
+            try {
+                // 从营养信息中提取热量值
+                String[] parts = recipeNutrition.split("\\|");
+                for (String part : parts) {
+                    if (part.contains("大卡") || part.contains("热量")) {
+                        String calStr = part.replaceAll("[^0-9]", "");
+                        if (!calStr.isEmpty()) {
+                            recipe.setCalories(Integer.parseInt(calStr));
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+        // 如果没有提取到热量，使用默认值
+        if (recipe.getCalories() == 0) {
+            recipe.setCalories(300); // 默认值
+        }
+
+        // 保存到数据库
+        RecipeDatabase database = new RecipeDatabase(this);
+        long id = database.addRecipe(recipe);
+
+        if (id != -1) {
+            // 可以在这里显示保存成功的提示，或者静默保存
+            // Toast.makeText(this, "食谱已保存到历史记录", Toast.LENGTH_SHORT).show();
+        }
+    }
     private void calculateAndDisplayDefaultNutrition() {
         // 根据用户目标计算默认营养值
         String goal = userProfile.getGoal();

@@ -37,6 +37,24 @@ public class UserProfile {
     }
 
     /**
+     * 保存附加信息（性别、年龄、职业）
+     */
+    public void saveAdditionalInfo(String gender, String age, String occupation) {
+        SharedPreferences.Editor editor = prefs.edit();
+        editor.putString(KEY_GENDER, gender);
+        editor.putString(KEY_AGE, age);
+        editor.putString(KEY_OCCUPATION, occupation);
+        editor.apply();
+    }
+
+    /**
+     * 保存附加信息（重载版本，只包含性别和年龄）
+     */
+    public void saveAdditionalInfo(String gender, String age) {
+        saveAdditionalInfo(gender, age, "");
+    }
+
+    /**
      * 获取身高
      */
     public String getHeight() {
@@ -58,16 +76,51 @@ public class UserProfile {
     }
 
     /**
-     * 保存完整用户信息（后续版本使用）
+     * 获取性别
      */
-    public void saveFullInfo(String height, String weight, String goal,
-                             String gender, String age, String occupation) {
+    public String getGender() {
+        return prefs.getString(KEY_GENDER, "");
+    }
+
+    /**
+     * 获取年龄
+     */
+    public String getAge() {
+        return prefs.getString(KEY_AGE, "");
+    }
+
+    /**
+     * 获取职业
+     */
+    public String getOccupation() {
+        return prefs.getString(KEY_OCCUPATION, "");
+    }
+
+    /**
+     * 获取所有用户信息（用于显示）
+     */
+    public String[] getAllInfo() {
+        return new String[]{
+                getHeight(),
+                getWeight(),
+                getGender(),
+                getAge(),
+                getGoal(),
+                getOccupation()
+        };
+    }
+
+    /**
+     * 更新用户信息
+     */
+    public void updateProfile(String height, String weight, String gender,
+                              String age, String goal, String occupation) {
         SharedPreferences.Editor editor = prefs.edit();
         editor.putString(KEY_HEIGHT, height);
         editor.putString(KEY_WEIGHT, weight);
-        editor.putString(KEY_GOAL, goal);
         editor.putString(KEY_GENDER, gender);
         editor.putString(KEY_AGE, age);
+        editor.putString(KEY_GOAL, goal);
         editor.putString(KEY_OCCUPATION, occupation);
         editor.apply();
     }
@@ -92,9 +145,31 @@ public class UserProfile {
     }
 
     /**
+     * 获取BMI等级描述
+     */
+    public String getBmiDescription() {
+        double bmi = calculateBMI();
+        if (bmi < 18.5) return "体重偏轻";
+        if (bmi < 24) return "正常范围";
+        if (bmi < 28) return "超重";
+        return "肥胖";
+    }
+
+    /**
      * 判断用户信息是否完整
      */
     public boolean isProfileComplete() {
+        return !getHeight().isEmpty() &&
+                !getWeight().isEmpty() &&
+                !getGoal().isEmpty() &&
+                !getGender().isEmpty() &&
+                !getAge().isEmpty();
+    }
+
+    /**
+     * 检查是否是最小信息完整（兼容旧版本）
+     */
+    public boolean isBasicProfileComplete() {
         return !getHeight().isEmpty() &&
                 !getWeight().isEmpty() &&
                 !getGoal().isEmpty();

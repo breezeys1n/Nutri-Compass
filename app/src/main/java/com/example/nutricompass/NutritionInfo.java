@@ -1,9 +1,10 @@
 package com.example.nutricompass;
-
+import java.io.Serializable;
 /**
  * 营养信息
  */
-public class NutritionInfo {
+public class NutritionInfo implements Serializable{
+    private static final long serialVersionUID = 1L;
     private double calories;    // 卡路里
     private double protein;     // 蛋白质
     private double carbs;       // 碳水化合物

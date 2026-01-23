@@ -2,11 +2,12 @@ package com.example.nutricompass;
 
 import java.util.ArrayList;
 import java.util.List;
-
+import java.io.Serializable;
 /**
  * AI生成的食谱
  */
-public class Recipe {
+public class Recipe implements Serializable{
+    private static final long serialVersionUID = 1L;
     private String name;                    // 食谱名称
     private String description;             // 食谱描述
     private String reason;                  // 推荐理由
@@ -18,11 +19,15 @@ public class Recipe {
     private String preparationTime;         // 准备时间
     private String cookingTime;             // 烹饪时间
     private int difficulty;                 // 难度等级 1-5
+    private int id;                      // 用于数据库的唯一ID
+    private String date;                 // 创建日期
+    private int calories;                // 总热量（为了与历史记录兼容）
 
     public Recipe() {
         this.ingredients = new ArrayList<>();
         this.cookingSteps = new ArrayList<>();
         this.nutrition = new NutritionInfo();
+        this.date = new java.text.SimpleDateFormat("yyyy-MM-dd").format(new java.util.Date());
     }
 
     // Getters and Setters
@@ -120,6 +125,38 @@ public class Recipe {
 
     public void setDifficulty(int difficulty) {
         this.difficulty = difficulty;
+    }
+    public int getId() {
+        return id;
+    }
+
+    public void setId(int id) {
+        this.id = id;
+    }
+
+    public String getDate() {
+        return date;
+    }
+
+    public void setDate(String date) {
+        this.date = date;
+    }
+
+    public int getCalories() {
+        return calories;
+    }
+
+    public void setCalories(int calories) {
+        this.calories = calories;
+    }
+
+    // 为了与历史记录兼容，添加一个获取简要标题的方法
+    public String getTitle() {
+        return name;  // 使用现有的 name 字段作为标题
+    }
+
+    public void setTitle(String title) {
+        this.name = title;  // 设置 name 字段
     }
 
     /**
