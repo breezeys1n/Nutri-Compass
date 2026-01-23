@@ -1,4 +1,4 @@
-package com.example.nutricompass.provider;
+package com.example.nutricompass;
 
 import android.util.Log;
 import com.example.nutricompass.BuildConfig;
@@ -45,22 +45,27 @@ public class WeatherProvider {
      * 内部方法：获取城市代码 (adcode)
      */
     private static String getAdcodeByLocation(OkHttpClient client, String key, String location) throws IOException {
+        // 关键点：高德要求坐标格式是 "经度,纬度"，确保传入的 location 没错
         String geoUrl = "https://restapi.amap.com/v3/geocode/regeo?location=" + location + "&key=" + key;
         Request request = new Request.Builder().url(geoUrl).build();
 
         try (Response response = client.newCall(request).execute()) {
             if (response.isSuccessful() && response.body() != null) {
                 String body = response.body().string();
+                Log.d(TAG, "高德逆地理编码返回原始数据: " + body); // 加上这行
+
                 JSONObject json = new JSONObject(body);
-                // 状态 1 代表成功
                 if ("1".equals(json.optString("status"))) {
                     return json.getJSONObject("regeocode")
                             .getJSONObject("addressComponent")
                             .optString("adcode");
+                } else {
+                    // 如果 status 不是 1，打印 info 字段看报错原因（比如：INVALID_USER_KEY）
+                    Log.e(TAG, "高德接口报错提示: " + json.optString("info"));
                 }
             }
         } catch (Exception e) {
-            Log.e(TAG, "解析 adcode 失败: " + e.getMessage());
+            Log.e(TAG, "请求异常: " + e.getMessage());
         }
         return null;
     }
