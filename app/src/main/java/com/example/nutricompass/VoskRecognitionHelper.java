@@ -17,8 +17,8 @@ import com.google.gson.JsonParser;
 
 import java.io.*;
 import java.lang.ref.WeakReference;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
+import java.util.ArrayList;
+import java.util.List;
 
 public class VoskRecognitionHelper {
     private static final String TAG = "VoskRecognition";
@@ -39,6 +39,10 @@ public class VoskRecognitionHelper {
     private RecognitionCallback callback;
     private Handler mainHandler;
 
+    // 保存部分结果的缓冲区
+    private List<String> partialResultsBuffer = new ArrayList<>();
+    private static final int MAX_PARTIAL_RESULTS = 10;
+
     public interface RecognitionCallback {
         void onResult(String text);
         void onPartialResult(String text);
@@ -56,6 +60,7 @@ public class VoskRecognitionHelper {
         if (bufferSize == AudioRecord.ERROR || bufferSize == AudioRecord.ERROR_BAD_VALUE) {
             bufferSize = SAMPLE_RATE * 2;
         }
+        Log.d(TAG, "AudioRecord buffer size: " + bufferSize);
     }
 
     public void initModel() {
@@ -88,10 +93,10 @@ public class VoskRecognitionHelper {
                     // 从assets复制模型文件
                     mainHandler.post(() -> callback.onStatus("正在复制模型文件..."));
 
-                    // 检查assets中的模型文件夹结构
+                    // 记录assets中模型文件夹的内容
                     logAssetsContent(context.getAssets(), modelAssetPath);
 
-                    boolean copySuccess = copyAssetsFolder(context.getAssets(), modelAssetPath, modelDir.getAbsolutePath());
+                    boolean copySuccess = copyAssetsFolderRecursive(context.getAssets(), modelAssetPath, modelDir.getAbsolutePath());
 
                     if (copySuccess) {
                         mainHandler.post(() -> callback.onStatus("模型文件复制完成，正在验证..."));
@@ -148,25 +153,36 @@ public class VoskRecognitionHelper {
             return false;
         }
 
-        // 检查是否有任何文件
         File[] files = modelDir.listFiles();
         if (files == null || files.length == 0) {
             Log.w(TAG, "模型文件夹为空");
             return false;
         }
 
-        // Vosk模型应该包含一些特定的文件或目录
-        // 常见的Vosk模型文件/目录
+        // 检查Vosk模型的关键文件
         boolean hasModelFiles = false;
 
-        // 检查是否有常见的Vosk模型文件
+        // Vosk模型通常包含这些关键目录
         for (File file : files) {
             String name = file.getName().toLowerCase();
-            if (name.contains("am") || name.contains("conf") || name.contains("graph") ||
-                    name.contains("mfcc") || name.contains("model") || name.endsWith(".mdl")) {
+            // 检查是否有am、conf、graph等关键目录
+            if (file.isDirectory() && (name.contains("am") || name.contains("conf") ||
+                    name.contains("graph") || name.contains("ivector"))) {
                 hasModelFiles = true;
-                Log.i(TAG, "找到可能的模型文件: " + file.getName());
-                break;
+                Log.i(TAG, "找到模型目录: " + file.getName());
+                // 检查目录下是否有文件
+                File[] subFiles = file.listFiles();
+                if (subFiles != null && subFiles.length > 0) {
+                    Log.i(TAG, "  包含 " + subFiles.length + " 个文件");
+                }
+            } else if (file.isFile()) {
+                // 检查是否有模型文件
+                String fileName = file.getName().toLowerCase();
+                if (fileName.endsWith(".mdl") || fileName.contains("mfcc") ||
+                        fileName.contains("model") || fileName.endsWith(".fst")) {
+                    hasModelFiles = true;
+                    Log.i(TAG, "找到模型文件: " + file.getName());
+                }
             }
         }
 
@@ -190,14 +206,14 @@ public class VoskRecognitionHelper {
 
         Log.i(TAG, "=== 模型文件夹结构 ===");
         Log.i(TAG, "路径: " + dir.getAbsolutePath());
-        listFilesRecursive(dir, "", true);
+        listFilesRecursive(dir, "");
         Log.i(TAG, "=== 结束模型结构 ===");
     }
 
     /**
      * 递归列出文件
      */
-    private void listFilesRecursive(File dir, String indent, boolean logFiles) {
+    private void listFilesRecursive(File dir, String indent) {
         if (dir == null || !dir.exists() || !dir.isDirectory()) {
             return;
         }
@@ -208,96 +224,92 @@ public class VoskRecognitionHelper {
         for (File file : files) {
             if (file.isDirectory()) {
                 Log.i(TAG, indent + "[DIR] " + file.getName());
-                if (logFiles) {
-                    listFilesRecursive(file, indent + "  ", logFiles);
-                }
+                listFilesRecursive(file, indent + "  ");
             } else {
-                if (logFiles) {
-                    Log.i(TAG, indent + file.getName() + " (" + file.length() + " bytes)");
-                }
+                Log.i(TAG, indent + file.getName() + " (" + formatFileSize(file.length()) + ")");
             }
         }
     }
 
     /**
-     * 从Assets复制整个文件夹
+     * 格式化文件大小
      */
-    private boolean copyAssetsFolder(AssetManager assetManager, String sourcePath, String targetPath) {
-        InputStream in = null;
-        OutputStream out = null;
+    private String formatFileSize(long size) {
+        if (size < 1024) return size + " B";
+        else if (size < 1024 * 1024) return String.format("%.1f KB", size / 1024.0);
+        else return String.format("%.1f MB", size / (1024.0 * 1024.0));
+    }
 
+    /**
+     * 递归复制assets文件夹
+     */
+    private boolean copyAssetsFolderRecursive(AssetManager assetManager, String sourcePath, String targetPath) {
         try {
-            // 首先检查源路径是否存在
             String[] files = assetManager.list(sourcePath);
             if (files == null || files.length == 0) {
-                Log.w(TAG, "Assets路径 '" + sourcePath + "' 不存在或为空");
+                Log.w(TAG, "Assets路径 '" + sourcePath + "' 为空");
                 return false;
             }
 
-            Log.i(TAG, "开始复制assets文件夹: " + sourcePath + " -> " + targetPath);
+            Log.i(TAG, "复制: " + sourcePath + " -> " + targetPath);
 
-            // 创建目标目录
-            File targetDir = new File(targetPath);
-            if (!targetDir.exists()) {
-                targetDir.mkdirs();
-            }
-
-            int totalFiles = 0;
-            long totalBytes = 0;
-
-            // 遍历assets中的所有文件/目录
             for (String file : files) {
                 String assetFilePath = sourcePath.isEmpty() ? file : sourcePath + "/" + file;
                 String targetFilePath = targetPath + "/" + file;
 
                 try {
                     // 尝试打开文件，如果能打开就是文件，否则可能是目录
-                    in = assetManager.open(assetFilePath);
-                    // 能打开，说明是文件
-                    File outFile = new File(targetFilePath);
-                    File parentDir = outFile.getParentFile();
-                    if (parentDir != null && !parentDir.exists()) {
-                        parentDir.mkdirs();
-                    }
-
-                    out = new FileOutputStream(outFile);
-                    byte[] buffer = new byte[8192];
-                    int length;
-                    long fileBytes = 0;
-                    while ((length = in.read(buffer)) > 0) {
-                        out.write(buffer, 0, length);
-                        fileBytes += length;
-                    }
-
-                    totalBytes += fileBytes;
-                    totalFiles++;
-
-                    if (totalFiles <= 10) { // 只记录前10个文件
-                        Log.d(TAG, "已复制: " + assetFilePath + " (" + fileBytes + " bytes)");
-                    }
-
-                    // 关闭流
-                    in.close();
-                    out.close();
-                    in = null;
-                    out = null;
-
-                } catch (FileNotFoundException e) {
-                    // 可能是目录，尝试递归复制
-                    Log.d(TAG, "尝试复制子目录: " + assetFilePath);
-                    copyAssetsFolder(assetManager, assetFilePath, targetFilePath);
+                    InputStream inputStream = assetManager.open(assetFilePath);
+                    // 是文件
+                    copyAssetFile(assetManager, assetFilePath, targetFilePath);
+                    inputStream.close();
                 } catch (IOException e) {
-                    // 其他IO异常
-                    Log.e(TAG, "复制文件失败: " + assetFilePath, e);
-                    return false;
+                    // 可能是目录，尝试递归复制
+                    Log.d(TAG, "创建子目录: " + targetFilePath);
+                    File dir = new File(targetFilePath);
+                    if (!dir.exists()) {
+                        dir.mkdirs();
+                    }
+                    copyAssetsFolderRecursive(assetManager, assetFilePath, targetFilePath);
                 }
             }
-
-            Log.i(TAG, "复制完成: " + totalFiles + " 个文件，总共 " + totalBytes + " 字节");
             return true;
-
         } catch (Exception e) {
             Log.e(TAG, "复制assets文件夹失败: " + sourcePath, e);
+            return false;
+        }
+    }
+
+    /**
+     * 复制单个assets文件
+     */
+    private boolean copyAssetFile(AssetManager assetManager, String assetPath, String targetPath) {
+        InputStream in = null;
+        OutputStream out = null;
+
+        try {
+            in = assetManager.open(assetPath);
+            File outFile = new File(targetPath);
+
+            // 确保父目录存在
+            File parentDir = outFile.getParentFile();
+            if (parentDir != null && !parentDir.exists()) {
+                parentDir.mkdirs();
+            }
+
+            out = new FileOutputStream(outFile);
+            byte[] buffer = new byte[8192];
+            int length;
+            long fileBytes = 0;
+            while ((length = in.read(buffer)) > 0) {
+                out.write(buffer, 0, length);
+                fileBytes += length;
+            }
+
+            Log.v(TAG, "已复制文件: " + assetPath + " (" + formatFileSize(fileBytes) + ")");
+            return true;
+        } catch (IOException e) {
+            Log.e(TAG, "复制assets文件失败: " + assetPath, e);
             return false;
         } finally {
             try {
@@ -325,11 +337,7 @@ public class VoskRecognitionHelper {
         }
 
         boolean deleted = dir.delete();
-        if (deleted) {
-            Log.d(TAG, "删除: " + dir.getAbsolutePath());
-        } else {
-            Log.w(TAG, "删除失败: " + dir.getAbsolutePath());
-        }
+        Log.d(TAG, "删除: " + dir.getAbsolutePath() + (deleted ? " 成功" : " 失败"));
         return deleted;
     }
 
@@ -343,43 +351,29 @@ public class VoskRecognitionHelper {
             String modelPath = modelDir.getAbsolutePath();
             Log.i(TAG, "加载模型路径: " + modelPath);
 
-            // 再次检查模型结构
-            logModelStructure(modelDir);
-
             // 尝试加载模型
             model = new Model(modelPath);
             recognizer = new Recognizer(model, SAMPLE_RATE);
 
+            // 设置识别器参数
+            recognizer.setMaxAlternatives(0);
+            recognizer.setWords(true);
+            recognizer.setPartialWords(true);
+
             mainHandler.post(() -> {
-                callback.onStatus("模型加载成功！可以开始说话");
+                callback.onStatus("模型加载成功！点击开始录音按钮说话");
                 Log.i(TAG, "Vosk模型初始化成功");
             });
 
         } catch (Exception e) {
             Log.e(TAG, "加载模型失败", e);
 
-            // 检查模型文件夹内容
-            File[] files = modelDir.listFiles();
-            if (files != null) {
-                Log.w(TAG, "模型文件夹内容:");
-                for (File file : files) {
-                    if (file.isDirectory()) {
-                        Log.w(TAG, "  [DIR] " + file.getName());
-                        // 检查子目录
-                        File[] subFiles = file.listFiles();
-                        if (subFiles != null) {
-                            for (File subFile : subFiles) {
-                                Log.w(TAG, "    " + subFile.getName());
-                            }
-                        }
-                    } else {
-                        Log.w(TAG, "  " + file.getName());
-                    }
-                }
+            String errorMsg = "加载模型失败: " + e.getMessage();
+            if (e.getMessage().contains("does not contain model files")) {
+                errorMsg += "\n请确保模型文件完整且格式正确";
             }
 
-            String errorMsg = "加载模型失败: " + e.getMessage();
-            mainHandler.post(() -> callback.onError(errorMsg));
+            mainHandler.post(() -> callback.onError("加载模型失败"));
         }
     }
 
@@ -388,17 +382,29 @@ public class VoskRecognitionHelper {
      */
     public void startRecording() {
         if (isRecording) {
+            Log.w(TAG, "已经在录音中");
             return;
         }
 
         if (recognizer == null) {
-            callback.onError("请先初始化模型");
+            mainHandler.post(() -> callback.onError("请先初始化模型"));
+            Log.e(TAG, "识别器未初始化");
             return;
         }
 
         try {
+            // 计算合适的buffer大小
+            int minBufferSize = AudioRecord.getMinBufferSize(SAMPLE_RATE, CHANNEL_CONFIG, AUDIO_FORMAT);
+            if (minBufferSize == AudioRecord.ERROR || minBufferSize == AudioRecord.ERROR_BAD_VALUE) {
+                minBufferSize = SAMPLE_RATE * 2;
+            }
+
+            // 使用更大的buffer以避免欠载
+            bufferSize = Math.max(minBufferSize, 4096);
+            Log.d(TAG, "使用buffer大小: " + bufferSize);
+
             audioRecord = new AudioRecord(
-                    MediaRecorder.AudioSource.MIC,
+                    MediaRecorder.AudioSource.MIC, // 使用麦克风
                     SAMPLE_RATE,
                     CHANNEL_CONFIG,
                     AUDIO_FORMAT,
@@ -406,15 +412,43 @@ public class VoskRecognitionHelper {
             );
 
             if (audioRecord.getState() != AudioRecord.STATE_INITIALIZED) {
-                callback.onError("无法初始化录音设备");
+                mainHandler.post(() -> callback.onError("无法初始化录音设备"));
+                Log.e(TAG, "AudioRecord初始化失败");
+                releaseAudioRecord();
                 return;
             }
 
             isRecording = true;
-            audioRecord.startRecording();
+
+            // 重置部分结果缓冲区
+            partialResultsBuffer.clear();
+
+            // 重置识别器
+            recognizer.reset();
+
+            try {
+                audioRecord.startRecording();
+            } catch (IllegalStateException e) {
+                mainHandler.post(() -> callback.onError("启动录音失败: " + e.getMessage()));
+                Log.e(TAG, "启动录音失败", e);
+                releaseAudioRecord();
+                isRecording = false;
+                return;
+            }
+
+            // 检查录音状态
+            if (audioRecord.getRecordingState() != AudioRecord.RECORDSTATE_RECORDING) {
+                mainHandler.post(() -> callback.onError("录音设备未就绪"));
+                Log.e(TAG, "录音设备未进入录音状态");
+                releaseAudioRecord();
+                isRecording = false;
+                return;
+            }
+
             mainHandler.post(() -> {
                 callback.onRecordingStarted();
-                callback.onStatus("正在录音...");
+                callback.onStatus("正在录音...请说话");
+                Log.i(TAG, "录音已开始");
             });
 
             // 启动识别线程
@@ -425,6 +459,7 @@ public class VoskRecognitionHelper {
             isRecording = false;
             mainHandler.post(() -> callback.onError("启动录音失败: " + e.getMessage()));
             Log.e(TAG, "启动录音失败", e);
+            releaseAudioRecord();
         }
     }
 
@@ -432,18 +467,47 @@ public class VoskRecognitionHelper {
      * 停止录音识别
      */
     public void stopRecording() {
+        Log.i(TAG, "停止录音");
         isRecording = false;
 
         if (recognitionThread != null) {
             recognitionThread.interrupt();
             try {
-                recognitionThread.join(1000);
+                recognitionThread.join(500);
             } catch (InterruptedException e) {
                 Log.e(TAG, "等待识别线程结束失败", e);
             }
             recognitionThread = null;
         }
 
+        releaseAudioRecord();
+
+        // 获取最终结果
+        if (recognizer != null) {
+            try {
+                String finalResult = recognizer.getFinalResult();
+                String text = parseResult(finalResult);
+                if (text != null && !text.isEmpty()) {
+                    Log.i(TAG, "最终识别结果: " + text);
+                    final String finalText = text;
+                    mainHandler.post(() -> callback.onResult(finalText));
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "获取最终结果失败", e);
+            }
+        }
+
+        mainHandler.post(() -> {
+            callback.onRecordingStopped();
+            callback.onStatus("已停止录音");
+            callback.onPartialResult(""); // 清空部分结果显示
+        });
+    }
+
+    /**
+     * 释放录音设备资源
+     */
+    private void releaseAudioRecord() {
         if (audioRecord != null) {
             try {
                 if (audioRecord.getRecordingState() == AudioRecord.RECORDSTATE_RECORDING) {
@@ -455,22 +519,19 @@ public class VoskRecognitionHelper {
             }
             audioRecord = null;
         }
-
-        mainHandler.post(() -> {
-            callback.onRecordingStopped();
-            callback.onStatus("已停止录音");
-        });
     }
 
     /**
-     * 释放资源
+     * 释放所有资源
      */
     public void release() {
+        Log.i(TAG, "释放所有资源");
         stopRecording();
 
         if (recognizer != null) {
             try {
                 recognizer.close();
+                Log.i(TAG, "识别器已关闭");
             } catch (Exception e) {
                 Log.e(TAG, "关闭识别器失败", e);
             }
@@ -480,6 +541,7 @@ public class VoskRecognitionHelper {
         if (model != null) {
             try {
                 model.close();
+                Log.i(TAG, "模型已关闭");
             } catch (Exception e) {
                 Log.e(TAG, "关闭模型失败", e);
             }
@@ -493,6 +555,7 @@ public class VoskRecognitionHelper {
     private class RecognitionThread extends Thread {
         @Override
         public void run() {
+            Log.i(TAG, "识别线程开始运行");
             byte[] buffer = new byte[bufferSize];
 
             while (isRecording && !Thread.interrupted() && audioRecord != null) {
@@ -500,11 +563,14 @@ public class VoskRecognitionHelper {
                     int bytesRead = audioRecord.read(buffer, 0, buffer.length);
 
                     if (bytesRead > 0 && recognizer != null) {
-                        if (recognizer.acceptWaveForm(buffer, bytesRead)) {
+                        boolean accepted = recognizer.acceptWaveForm(buffer, bytesRead);
+
+                        if (accepted) {
                             // 最终结果
                             String resultJson = recognizer.getResult();
                             String text = parseResult(resultJson);
                             if (text != null && !text.isEmpty()) {
+                                Log.i(TAG, "识别结果: " + text);
                                 final String finalText = text;
                                 mainHandler.post(() -> callback.onResult(finalText));
                             }
@@ -513,11 +579,32 @@ public class VoskRecognitionHelper {
                             String partialJson = recognizer.getPartialResult();
                             String partialText = parsePartialResult(partialJson);
                             if (partialText != null && !partialText.isEmpty()) {
+                                // 添加到缓冲区
+                                partialResultsBuffer.add(partialText);
+                                if (partialResultsBuffer.size() > MAX_PARTIAL_RESULTS) {
+                                    partialResultsBuffer.remove(0);
+                                }
+
+                                Log.d(TAG, "部分结果: " + partialText);
                                 final String finalPartialText = partialText;
                                 mainHandler.post(() -> callback.onPartialResult(finalPartialText));
                             }
                         }
+                    } else if (bytesRead == AudioRecord.ERROR_INVALID_OPERATION) {
+                        Log.e(TAG, "AudioRecord读取错误: ERROR_INVALID_OPERATION");
+                        break;
+                    } else if (bytesRead == AudioRecord.ERROR_BAD_VALUE) {
+                        Log.e(TAG, "AudioRecord读取错误: ERROR_BAD_VALUE");
+                        break;
                     }
+
+                    // 短暂休眠，避免过于频繁的循环
+                    try {
+                        Thread.sleep(20);
+                    } catch (InterruptedException e) {
+                        break;
+                    }
+
                 } catch (Exception e) {
                     Log.e(TAG, "识别过程中出错", e);
                     mainHandler.post(() -> callback.onError("识别错误: " + e.getMessage()));
@@ -525,19 +612,7 @@ public class VoskRecognitionHelper {
                 }
             }
 
-            // 录音结束时获取最终结果
-            if (recognizer != null) {
-                try {
-                    String finalResult = recognizer.getFinalResult();
-                    String text = parseResult(finalResult);
-                    if (text != null && !text.isEmpty()) {
-                        final String finalText = text;
-                        mainHandler.post(() -> callback.onResult(finalText));
-                    }
-                } catch (Exception e) {
-                    Log.e(TAG, "获取最终结果失败", e);
-                }
-            }
+            Log.i(TAG, "识别线程结束");
         }
     }
 
@@ -574,9 +649,22 @@ public class VoskRecognitionHelper {
                 return jsonObject.get("partial").getAsString();
             }
         } catch (Exception e) {
-            Log.e(TAG, "解析部分结果失败", e);
+            Log.e(TAG, "解析部分结果失败: " + json, e);
         }
         return "";
     }
 
+    /**
+     * 检查是否正在录音
+     */
+    public boolean isRecording() {
+        return isRecording;
+    }
+
+    /**
+     * 检查模型是否已加载
+     */
+    public boolean isModelLoaded() {
+        return model != null && recognizer != null;
+    }
 }
