@@ -44,6 +44,8 @@ public class CameraActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_camera);
 
+        BackButtonUtil.setupBackButton(this);
+
         // 接收 MainActivity 传递的数据
         userGoal = getIntent().getStringExtra("user_goal");
 

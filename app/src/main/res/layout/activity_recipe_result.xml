@@ -1,381 +1,395 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="24dp"
     android:background="#FFF9F0">
 
-    <LinearLayout
-        android:layout_width="match_parent"
+    <!-- 返回按钮 -->
+    <include
+        android:id="@+id/back_button"
+        layout="@layout/layout_back_button"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="vertical">
+        android:layout_alignParentStart="true"
+        android:layout_alignParentTop="true" />
 
-        <!-- 顶部标题 -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="🎯 AI营养师推荐"
-            android:textSize="28sp"
-            android:textStyle="bold"
-            android:textColor="#FF6B35"
-            android:layout_marginBottom="16dp"
-            android:layout_gravity="center_horizontal"/>
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:padding="24dp"
+        android:layout_below="@id/back_button">
 
-        <!-- 用户数据展示 -->
-        <TextView
-            android:id="@+id/tv_user_data"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="为您定制"
-            android:textSize="14sp"
-            android:textColor="#666"
-            android:gravity="center"
-            android:layout_marginBottom="24dp"
-            android:padding="12dp"
-            android:background="#FFF3E0"/>
-
-        <!-- 食谱名称卡片 -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="20dp"
-            android:background="@drawable/card_background"
-            android:layout_marginBottom="20dp"
-            android:elevation="4dp">
+            android:orientation="vertical">
 
+            <!-- 顶部标题 -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="今日推荐"
-                android:textSize="12sp"
-                android:textColor="#FF9800"
-                android:layout_marginBottom="8dp"/>
-
-            <TextView
-                android:id="@+id/tv_recipe_name"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="番茄炒蛋"
-                android:textSize="32sp"
+                android:text="🎯 AI营养师推荐"
+                android:textSize="28sp"
                 android:textStyle="bold"
-                android:textColor="#333"/>
+                android:textColor="#FF6B35"
+                android:layout_marginBottom="16dp"
+                android:layout_gravity="center_horizontal"/>
 
-            <!-- 新增：食谱描述 -->
+            <!-- 用户数据展示 -->
             <TextView
-                android:id="@+id/tv_recipe_description"
+                android:id="@+id/tv_user_data"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text=""
+                android:text="为您定制"
                 android:textSize="14sp"
                 android:textColor="#666"
-                android:layout_marginTop="8dp"/>
-
-        </LinearLayout>
-
-        <!-- AI推荐理由卡片 -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="20dp"
-            android:background="@drawable/card_background"
-            android:layout_marginBottom="20dp"
-            android:elevation="4dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="🤖 AI营养分析"
-                android:textSize="14sp"
-                android:textColor="#2196F3"
-                android:layout_marginBottom="12dp"
-                android:textStyle="bold"/>
-
-            <TextView
-                android:id="@+id/tv_recipe_reason"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="根据您输入的减脂目标和现有食材，AI推荐这道菜..."
-                android:textSize="16sp"
-                android:textColor="#444"
-                android:lineSpacingExtra="4dp"/>
-
-            <!-- 新增：天气信息 -->
-            <TextView
-                android:id="@+id/tv_weather_info"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text=""
-                android:textSize="14sp"
-                android:textColor="#666"
-                android:layout_marginTop="12dp"/>
-
-
-        </LinearLayout>
-
-        <!-- 食材清单卡片 -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="20dp"
-            android:background="@drawable/card_background"
-            android:layout_marginBottom="20dp"
-            android:elevation="4dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="🥦 所需食材"
-                android:textSize="14sp"
-                android:textColor="#4CAF50"
-                android:layout_marginBottom="12dp"
-                android:textStyle="bold"/>
-
-            <LinearLayout
-                android:id="@+id/layout_ingredients_container"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical">
-
-                <!-- 食材列表会在这里动态添加 -->
-                <TextView
-                    android:id="@+id/tv_ingredients_placeholder"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="正在加载食材清单..."
-                    android:textSize="16sp"
-                    android:textColor="#444"
-                    android:lineSpacingExtra="4dp"/>
-
-            </LinearLayout>
-
-        </LinearLayout>
-
-        <!-- 时间难度卡片 -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:padding="20dp"
-            android:background="@drawable/card_background"
-            android:layout_marginBottom="20dp"
-            android:elevation="4dp">
-
-            <!-- 准备时间 -->
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical"
-                android:gravity="center">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="⏰"
-                    android:textSize="24sp"/>
-
-                <TextView
-                    android:id="@+id/tv_prep_time"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="准备时间"
-                    android:textSize="12sp"
-                    android:textColor="#666"
-                    android:layout_marginTop="4dp"/>
-
-                <TextView
-                    android:id="@+id/tv_prep_time_value"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="10分钟"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:textColor="#333"/>
-
-            </LinearLayout>
-
-            <!-- 烹饪时间 -->
-            <View
-                android:layout_width="1dp"
-                android:layout_height="40dp"
-                android:layout_marginHorizontal="12dp"
-                android:background="#E0E0E0"/>
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical"
-                android:gravity="center">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="🔥"
-                    android:textSize="24sp"/>
-
-                <TextView
-                    android:id="@+id/tv_cook_time"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="烹饪时间"
-                    android:textSize="12sp"
-                    android:textColor="#666"
-                    android:layout_marginTop="4dp"/>
-
-                <TextView
-                    android:id="@+id/tv_cook_time_value"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="15分钟"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:textColor="#333"/>
-
-            </LinearLayout>
-
-            <!-- 难度等级 -->
-            <View
-                android:layout_width="1dp"
-                android:layout_height="40dp"
-                android:layout_marginHorizontal="12dp"
-                android:background="#E0E0E0"/>
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical"
-                android:gravity="center">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="⭐"
-                    android:textSize="24sp"/>
-
-                <TextView
-                    android:id="@+id/tv_difficulty"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="难度等级"
-                    android:textSize="12sp"
-                    android:textColor="#666"
-                    android:layout_marginTop="4dp"/>
-
-                <TextView
-                    android:id="@+id/tv_difficulty_value"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="简单"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:textColor="#333"/>
-
-            </LinearLayout>
-
-        </LinearLayout>
-
-        <!-- 烹饪步骤卡片 -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="20dp"
-            android:background="@drawable/card_background"
-            android:layout_marginBottom="20dp"
-            android:elevation="4dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="👨‍🍳 烹饪步骤"
-                android:textSize="14sp"
-                android:textColor="#FF9800"
-                android:layout_marginBottom="12dp"
-                android:textStyle="bold"/>
-
-            <LinearLayout
-                android:id="@+id/layout_steps_container"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical">
-
-                <!-- 步骤列表会在这里动态添加 -->
-                <TextView
-                    android:id="@+id/tv_steps_placeholder"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="正在加载烹饪步骤..."
-                    android:textSize="16sp"
-                    android:textColor="#444"
-                    android:lineSpacingExtra="4dp"/>
-
-            </LinearLayout>
-
-        </LinearLayout>
-
-        <!-- 营养信息卡片 -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="20dp"
-            android:background="@drawable/card_background"
-            android:layout_marginBottom="20dp"
-            android:elevation="4dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="📊 营养数据"
-                android:textSize="14sp"
-                android:textColor="#4CAF50"
-                android:layout_marginBottom="12dp"
-                android:textStyle="bold"/>
-
-            <TextView
-                android:id="@+id/tv_recipe_nutrition"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="热量: 220大卡 | 蛋白质: 15g | 碳水: 10g"
-                android:textSize="16sp"
-                android:textColor="#444"/>
-
-            <!-- 预留：可以在这里添加一个营养环形图进度条 -->
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:background="#E0E0E0"
-                android:layout_marginTop="16dp"
-                android:layout_marginBottom="16dp"/>
-
-            <TextView
-                android:id="@+id/tv_cooking_tips"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="💡 小贴士：搭配一份绿叶蔬菜营养更均衡！"
-                android:textSize="14sp"
-                android:textColor="#FF9800"
+                android:gravity="center"
+                android:layout_marginBottom="24dp"
                 android:padding="12dp"
                 android:background="#FFF3E0"/>
 
+            <!-- 食谱名称卡片 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="20dp"
+                android:background="@drawable/card_background"
+                android:layout_marginBottom="20dp"
+                android:elevation="4dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="今日推荐"
+                    android:textSize="12sp"
+                    android:textColor="#FF9800"
+                    android:layout_marginBottom="8dp"/>
+
+                <TextView
+                    android:id="@+id/tv_recipe_name"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="番茄炒蛋"
+                    android:textSize="32sp"
+                    android:textStyle="bold"
+                    android:textColor="#333"/>
+
+                <!-- 新增：食谱描述 -->
+                <TextView
+                    android:id="@+id/tv_recipe_description"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text=""
+                    android:textSize="14sp"
+                    android:textColor="#666"
+                    android:layout_marginTop="8dp"/>
+
+            </LinearLayout>
+
+            <!-- AI推荐理由卡片 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="20dp"
+                android:background="@drawable/card_background"
+                android:layout_marginBottom="20dp"
+                android:elevation="4dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="🤖 AI营养分析"
+                    android:textSize="14sp"
+                    android:textColor="#2196F3"
+                    android:layout_marginBottom="12dp"
+                    android:textStyle="bold"/>
+
+                <TextView
+                    android:id="@+id/tv_recipe_reason"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="根据您输入的减脂目标和现有食材，AI推荐这道菜..."
+                    android:textSize="16sp"
+                    android:textColor="#444"
+                    android:lineSpacingExtra="4dp"/>
+
+                <!-- 新增：天气信息 -->
+                <TextView
+                    android:id="@+id/tv_weather_info"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text=""
+                    android:textSize="14sp"
+                    android:textColor="#666"
+                    android:layout_marginTop="12dp"/>
+
+            </LinearLayout>
+
+            <!-- 食材清单卡片 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="20dp"
+                android:background="@drawable/card_background"
+                android:layout_marginBottom="20dp"
+                android:elevation="4dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="🥦 所需食材"
+                    android:textSize="14sp"
+                    android:textColor="#4CAF50"
+                    android:layout_marginBottom="12dp"
+                    android:textStyle="bold"/>
+
+                <LinearLayout
+                    android:id="@+id/layout_ingredients_container"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <!-- 食材列表会在这里动态添加 -->
+                    <TextView
+                        android:id="@+id/tv_ingredients_placeholder"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="正在加载食材清单..."
+                        android:textSize="16sp"
+                        android:textColor="#444"
+                        android:lineSpacingExtra="4dp"/>
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+            <!-- 时间难度卡片 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:padding="20dp"
+                android:background="@drawable/card_background"
+                android:layout_marginBottom="20dp"
+                android:elevation="4dp">
+
+                <!-- 准备时间 -->
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:gravity="center">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="⏰"
+                        android:textSize="24sp"/>
+
+                    <TextView
+                        android:id="@+id/tv_prep_time"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="准备时间"
+                        android:textSize="12sp"
+                        android:textColor="#666"
+                        android:layout_marginTop="4dp"/>
+
+                    <TextView
+                        android:id="@+id/tv_prep_time_value"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="10分钟"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:textColor="#333"/>
+
+                </LinearLayout>
+
+                <!-- 烹饪时间 -->
+                <View
+                    android:layout_width="1dp"
+                    android:layout_height="40dp"
+                    android:layout_marginHorizontal="12dp"
+                    android:background="#E0E0E0"/>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:gravity="center">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="🔥"
+                        android:textSize="24sp"/>
+
+                    <TextView
+                        android:id="@+id/tv_cook_time"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="烹饪时间"
+                        android:textSize="12sp"
+                        android:textColor="#666"
+                        android:layout_marginTop="4dp"/>
+
+                    <TextView
+                        android:id="@+id/tv_cook_time_value"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="15分钟"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:textColor="#333"/>
+
+                </LinearLayout>
+
+                <!-- 难度等级 -->
+                <View
+                    android:layout_width="1dp"
+                    android:layout_height="40dp"
+                    android:layout_marginHorizontal="12dp"
+                    android:background="#E0E0E0"/>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:gravity="center">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="⭐"
+                        android:textSize="24sp"/>
+
+                    <TextView
+                        android:id="@+id/tv_difficulty"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="难度等级"
+                        android:textSize="12sp"
+                        android:textColor="#666"
+                        android:layout_marginTop="4dp"/>
+
+                    <TextView
+                        android:id="@+id/tv_difficulty_value"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="简单"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:textColor="#333"/>
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+            <!-- 烹饪步骤卡片 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="20dp"
+                android:background="@drawable/card_background"
+                android:layout_marginBottom="20dp"
+                android:elevation="4dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="👨‍🍳 烹饪步骤"
+                    android:textSize="14sp"
+                    android:textColor="#FF9800"
+                    android:layout_marginBottom="12dp"
+                    android:textStyle="bold"/>
+
+                <LinearLayout
+                    android:id="@+id/layout_steps_container"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <!-- 步骤列表会在这里动态添加 -->
+                    <TextView
+                        android:id="@+id/tv_steps_placeholder"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="正在加载烹饪步骤..."
+                        android:textSize="16sp"
+                        android:textColor="#444"
+                        android:lineSpacingExtra="4dp"/>
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+            <!-- 营养信息卡片 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="20dp"
+                android:background="@drawable/card_background"
+                android:layout_marginBottom="20dp"
+                android:elevation="4dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="📊 营养数据"
+                    android:textSize="14sp"
+                    android:textColor="#4CAF50"
+                    android:layout_marginBottom="12dp"
+                    android:textStyle="bold"/>
+
+                <TextView
+                    android:id="@+id/tv_recipe_nutrition"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="热量: 220大卡 | 蛋白质: 15g | 碳水: 10g"
+                    android:textSize="16sp"
+                    android:textColor="#444"/>
+
+                <!-- 预留：可以在这里添加一个营养环形图进度条 -->
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#E0E0E0"
+                    android:layout_marginTop="16dp"
+                    android:layout_marginBottom="16dp"/>
+
+                <TextView
+                    android:id="@+id/tv_cooking_tips"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="💡 小贴士：搭配一份绿叶蔬菜营养更均衡！"
+                    android:textSize="14sp"
+                    android:textColor="#FF9800"
+                    android:padding="12dp"
+                    android:background="#FFF3E0"/>
+
+            </LinearLayout>
+
+            <!-- 操作按钮 -->
+            <Button
+                android:id="@+id/btn_next_step"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="开始烹饪 →"
+                android:layout_marginTop="24dp"
+                android:backgroundTint="#FF6B35"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
+                android:padding="16dp"/>
+
         </LinearLayout>
-
-        <!-- 操作按钮 -->
-        <Button
-            android:id="@+id/btn_next_step"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="开始烹饪 →"
-            android:layout_marginTop="24dp"
-            android:backgroundTint="#FF6B35"
-            android:textColor="#FFFFFF"
-            android:textSize="16sp"
-            android:padding="16dp"/>
-
-    </LinearLayout>
-</ScrollView>
+    </ScrollView>
+</RelativeLayout>

@@ -245,6 +245,15 @@ public class MainActivity extends AppCompatActivity {
      */
     private void proceedToRecipeGeneration() {
         Intent intent = new Intent(MainActivity.this, CameraActivity.class);
+
+        // --- 核心修复：把目标传过去 ---
+        if (userProfile == null) {
+            userProfile = new UserProfile(this);
+        }
+        String savedGoal = userProfile.getGoal();
+        intent.putExtra("user_goal", savedGoal);
+        // ----------------------------
+
         startActivity(intent);
     }
 

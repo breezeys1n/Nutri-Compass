@@ -26,6 +26,8 @@ public class TalkWithAIActivity extends AppCompatActivity implements VoskRecogni
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_talk_with_ai);
 
+        BackButtonUtil.setupBackButton(this);
+
         // 初始化视图
         tvStatus = findViewById(R.id.tv_status);
         tvResult = findViewById(R.id.tv_result);

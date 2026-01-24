@@ -5,6 +5,15 @@
     android:layout_height="match_parent"
     android:background="@drawable/background_with_overlay">
 
+    <!-- 返回按钮 -->
+    <include
+        android:id="@+id/back_button"
+        layout="@layout/layout_back_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentStart="true"
+        android:layout_alignParentTop="true" />
+
     <!-- 标题栏 -->
     <LinearLayout
         android:id="@+id/header"
@@ -13,7 +22,8 @@
         android:orientation="horizontal"
         android:background="#E6FFFFFF"
         android:padding="16dp"
-        android:elevation="4dp">
+        android:elevation="4dp"
+        android:layout_below="@id/back_button">
 
         <TextView
             android:layout_width="0dp"

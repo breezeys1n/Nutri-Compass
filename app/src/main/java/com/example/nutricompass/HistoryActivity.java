@@ -30,6 +30,8 @@ public class HistoryActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_history);
 
+        BackButtonUtil.setupBackButton(this);
+
         // 初始化数据库（简化的内存存储，实际项目中可以用 Room 数据库）
         recipeDatabase = new RecipeDatabase(this);
 

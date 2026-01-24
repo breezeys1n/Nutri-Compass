@@ -27,6 +27,8 @@ public class ProfileActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_profile);
 
+        BackButtonUtil.setupBackButton(this);
+
         userProfile = new UserProfile(this);
 
         // 初始化控件

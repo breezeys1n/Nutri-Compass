@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
@@ -8,129 +8,122 @@
     android:background="#f5f5f5"
     tools:context=".TalkWithAIActivity">
 
-    <!-- 标题 -->
-    <TextView
-        android:id="@+id/tv_title"
+    <!-- 返回按钮 -->
+    <include
+        android:id="@+id/back_button"
+        layout="@layout/layout_back_button"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Vosk离线语音识别"
-        android:textSize="24sp"
-        android:textStyle="bold"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        android:layout_alignParentStart="true"
+        android:layout_alignParentTop="true" />
 
-    <!-- 状态提示区域 -->
-    <TextView
-        android:id="@+id/tv_status"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="20dp"
-        android:padding="12dp"
-        android:background="#e3f2fd"
-        android:text="请先初始化模型"
-        android:textSize="16sp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/tv_title" />
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:layout_below="@id/back_button">
 
-    <!-- 部分结果提示区域 -->
-    <TextView
-        android:id="@+id/tv_partial"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
-        android:padding="12dp"
-        android:background="#fff3e0"
-        android:text="部分结果将显示在这里..."
-        android:textSize="14sp"
-        android:textColor="#ff9800"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/tv_status" />
-
-    <!-- 主结果显示区域 (可滚动) -->
-    <ScrollView
-        android:id="@+id/scrollView"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:layout_marginTop="10dp"
-        android:background="@android:color/white"
-        app:layout_constraintBottom_toTopOf="@+id/guideline_bottom"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/tv_partial">
-
+        <!-- 标题 -->
         <TextView
-            android:id="@+id/tv_result"
+            android:id="@+id/tv_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Vosk离线语音识别"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="20dp"
+            android:layout_marginBottom="20dp" />
+
+        <!-- 状态提示区域 -->
+        <TextView
+            android:id="@+id/tv_status"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:padding="16dp"
-            android:text="识别结果将显示在这里...\n"
-            android:textSize="18sp" />
+            android:padding="12dp"
+            android:background="#e3f2fd"
+            android:text="请先初始化模型"
+            android:textSize="16sp" />
 
-    </ScrollView>
+        <!-- 部分结果提示区域 -->
+        <TextView
+            android:id="@+id/tv_partial"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:padding="12dp"
+            android:background="#fff3e0"
+            android:text="部分结果将显示在这里..."
+            android:textSize="14sp"
+            android:textColor="#ff9800" />
 
-    <!-- 底部引导线 -->
-    <androidx.constraintlayout.widget.Guideline
-        android:id="@+id/guideline_bottom"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        app:layout_constraintGuide_end="139dp" />
+        <!-- 主结果显示区域 (可滚动) -->
+        <ScrollView
+            android:id="@+id/scrollView"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:layout_marginTop="10dp"
+            android:background="@android:color/white">
 
-    <!-- 按钮区域 -->
-    <Button
-        android:id="@+id/btn_init"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="20dp"
-        android:backgroundTint="#2196F3"
-        android:text="初始化模型"
-        android:textColor="@android:color/white"
-        app:layout_constraintEnd_toStartOf="@+id/btn_start"
-        app:layout_constraintHorizontal_bias="0.5"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/guideline_bottom" />
+            <TextView
+                android:id="@+id/tv_result"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="16dp"
+                android:text="识别结果将显示在这里...\n"
+                android:textSize="18sp" />
 
-    <Button
-        android:id="@+id/btn_start"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="8dp"
-        android:backgroundTint="#4CAF50"
-        android:enabled="false"
-        android:text="开始录音"
-        android:textColor="@android:color/white"
-        app:layout_constraintBottom_toBottomOf="@+id/btn_init"
-        app:layout_constraintEnd_toStartOf="@+id/btn_stop"
-        app:layout_constraintStart_toEndOf="@+id/btn_init"
-        app:layout_constraintTop_toTopOf="@+id/btn_init" />
+        </ScrollView>
 
-    <Button
-        android:id="@+id/btn_stop"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="8dp"
-        android:backgroundTint="#F44336"
-        android:enabled="false"
-        android:text="停止录音"
-        android:textColor="@android:color/white"
-        app:layout_constraintBottom_toBottomOf="@+id/btn_start"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toEndOf="@+id/btn_start"
-        app:layout_constraintTop_toTopOf="@+id/btn_start" />
+        <!-- 按钮区域 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="20dp"
+            android:gravity="center_horizontal">
 
-    <!-- 底部说明文字 -->
-    <TextView
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
-        android:text="说明：首次使用需要初始化模型，请确保网络连接"
-        android:textSize="12sp"
-        android:textColor="#666"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/btn_init" />
+            <Button
+                android:id="@+id/btn_init"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:backgroundTint="#2196F3"
+                android:text="初始化模型"
+                android:textColor="@android:color/white"
+                android:layout_marginEnd="8dp" />
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+            <Button
+                android:id="@+id/btn_start"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:backgroundTint="#4CAF50"
+                android:enabled="false"
+                android:text="开始录音"
+                android:textColor="@android:color/white"
+                android:layout_marginEnd="8dp" />
+
+            <Button
+                android:id="@+id/btn_stop"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:backgroundTint="#F44336"
+                android:enabled="false"
+                android:text="停止录音"
+                android:textColor="@android:color/white" />
+        </LinearLayout>
+
+        <!-- 底部说明文字 -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:text="说明：首次使用需要初始化模型，请确保网络连接"
+            android:textSize="12sp"
+            android:textColor="#666" />
+
+    </LinearLayout>
+</RelativeLayout>

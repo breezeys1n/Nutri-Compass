@@ -15,7 +15,7 @@ public class RecipeAnalyzer {
     private Context context;
 
     // 本地 Ollama 地址 (确保你的电脑小羊驼正在运行且 OLLAMA_HOST=0.0.0.0)
-    private static final String OLLAMA_URL = "http://192.168.2.77:11434/api/chat";
+    private static final String OLLAMA_URL = "http://192.168.3.22:11434/api/chat";
     // 使用你通过 Nutri-Compass.txt 创建的定制模型
     private static final String CUSTOM_MODEL = "my_health_chef";
 
@@ -157,9 +157,12 @@ public class RecipeAnalyzer {
         JSONArray stp = json.optJSONArray("cooking_steps");
         if (stp != null) {
             for (int i = 0; i < stp.length(); i++) {
-                String step = stp.getString(i);
-                if (step != null && !step.trim().isEmpty()) {
-                    recipe.addCookingStep(step);
+                // 使用 optString 替代 getString，并检查 isNull，防止索引溢出或空指针
+                if (!stp.isNull(i)) {
+                    String step = stp.optString(i, "");
+                    if (!step.trim().isEmpty()) {
+                        recipe.addCookingStep(step);
+                    }
                 }
             }
         }
