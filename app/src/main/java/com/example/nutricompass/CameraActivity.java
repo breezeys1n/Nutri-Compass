@@ -37,6 +37,7 @@ public class CameraActivity extends AppCompatActivity {
     private Button btnTakePhoto, btnConfirmPhoto, btnPickPhoto,btnTalkWithAi; // 新增：btnPickPhoto
 
     private String userGoal;
+    private String userStatusDesc = "";
     private Bitmap currentImageBitmap;
 
     @Override
@@ -48,6 +49,7 @@ public class CameraActivity extends AppCompatActivity {
 
         // 接收 MainActivity 传递的数据
         userGoal = getIntent().getStringExtra("user_goal");
+        userStatusDesc = getIntent().getStringExtra("user_status_desc");
 
         initViews();
         tvStatus.setText("当前目标: " + userGoal + "\n下一步：请拍摄或从相册选择食材照片");
@@ -128,7 +130,6 @@ public class CameraActivity extends AppCompatActivity {
                 tvStatus.setText("照片已就绪，开始识别！");
 
                 btnConfirmPhoto.setEnabled(true);
-                // 设置为绿色 (十六进制颜色)
                 btnConfirmPhoto.setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xFF4CAF50));
             }
         }
@@ -153,14 +154,13 @@ public class CameraActivity extends AppCompatActivity {
 
                 RecipeAnalyzer analyzer = new RecipeAnalyzer(this);
                 // 执行核心 AI 分析逻辑
-                Recipe recipe = analyzer.analyzeRecipe(imageBase64, userGoal, "正常");
+                Recipe recipe = analyzer.analyzeRecipe(imageBase64, userGoal, userStatusDesc);
 
                 // 第三阶段：分析完成
                 runOnUiThread(() -> {
                     if (recipe != null) {
                         tvStatus.setText("✨ 食谱生成成功！正在跳转...");
 
-                        // 原有的跳转逻辑（一点没删）
                         Intent resultIntent = new Intent(CameraActivity.this, RecipeResultActivity.class);
                         resultIntent.putExtra("recipe_name", recipe.getName());
                         resultIntent.putExtra("recipe_description", recipe.getDescription());
@@ -210,19 +210,16 @@ public class CameraActivity extends AppCompatActivity {
     }
 
     private String convertBitmapToBase64(Bitmap bitmap) {
-        // 1. 强制降到 512 像素。复杂图片的细节会减少，但特征依然明显
         int maxSize = 512;
         int width = bitmap.getWidth();
         int height = bitmap.getHeight();
         float ratio = Math.min((float) maxSize / width, (float) maxSize / height);
         Bitmap resized = Bitmap.createScaledBitmap(bitmap, (int)(width * ratio), (int)(height * ratio), true);
 
-        // 2. 质量降到 40%。这能大幅度缩减复杂背景产生的冗余数据
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         resized.compress(Bitmap.CompressFormat.JPEG, 40, out);
         byte[] byteArray = out.toByteArray();
 
-        // 3. 监控：现在即使是塞满蔬菜的图，长度也应该在 30,000 - 50,000 左右
         Log.d(TAG, "🚀 极度压缩后 Base64 长度: " + byteArray.length);
 
         return Base64.encodeToString(byteArray, Base64.NO_WRAP);

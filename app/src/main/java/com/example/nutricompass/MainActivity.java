@@ -244,7 +244,7 @@ public class MainActivity extends AppCompatActivity {
      * 跳转到食谱生成页面
      */
     private void proceedToRecipeGeneration() {
-        Intent intent = new Intent(MainActivity.this, CameraActivity.class);
+        Intent intent = new Intent(MainActivity.this, VoiceStatusActivity.class);
 
         // --- 核心修复：把目标传过去 ---
         if (userProfile == null) {
@@ -257,14 +257,6 @@ public class MainActivity extends AppCompatActivity {
         startActivity(intent);
     }
 
-    /**
-     * 处理返回键
-     */
-    @Override
-    public void onBackPressed() {
-        // 如果在主界面，最小化应用
-        moveTaskToBack(true);
-    }
 
     /**
      * BMI描述
