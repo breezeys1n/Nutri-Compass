@@ -71,8 +71,10 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:padding="16dp"
-                android:text="识别结果将显示在这里...\n"
-                android:textSize="18sp" />
+                android:text="欢迎使用健康营养助手！请先初始化模型，然后点击“开始录音”与我对话。\n"
+                android:textSize="16sp"
+                android:lineSpacingExtra="4dp"
+                android:textColor="#333333" />
 
         </ScrollView>
 

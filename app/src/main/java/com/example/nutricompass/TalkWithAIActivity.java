@@ -19,6 +19,10 @@ public class TalkWithAIActivity extends AppCompatActivity implements VoskRecogni
     private TextView tvStatus, tvResult, tvPartial;
     private Button btnStart, btnStop, btnInit;
 
+    private OllamaApiClient ollamaClient;
+    private boolean isAiResponding = false;
+    private StringBuilder conversationHistory = new StringBuilder();
+    private static final int MAX_HISTORY_LENGTH = 1000; // 控制上下文长度
     private boolean isModelInitialized = false;
 
     @Override
@@ -43,7 +47,7 @@ public class TalkWithAIActivity extends AppCompatActivity implements VoskRecogni
 
         // 初始化识别助手
         voskHelper = new VoskRecognitionHelper(this, this);
-
+        ollamaClient = new OllamaApiClient();
         // 按钮点击事件
         btnInit.setOnClickListener(v -> {
             btnInit.setEnabled(false);
@@ -127,20 +131,74 @@ public class TalkWithAIActivity extends AppCompatActivity implements VoskRecogni
     @Override
     public void onResult(String text) {
         runOnUiThread(() -> {
-            tvResult.append(text + "\n");
-            // 滚动到底部
-            final TextView resultView = tvResult;
-            resultView.post(() -> {
-                int scrollAmount = resultView.getLayout().getLineTop(resultView.getLineCount()) - resultView.getHeight();
-                if (scrollAmount > 0) {
-                    resultView.scrollTo(0, scrollAmount);
-                } else {
-                    resultView.scrollTo(0, 0);
-                }
-            });
+            // 1. 显示用户说的话
+            tvResult.append("\n👤 您: " + text + "\n");
+            // 2. 将用户输入添加到对话历史
+            conversationHistory.append("用户: ").append(text).append("\n");
+            // 3. 修剪历史以避免过长
+            if (conversationHistory.length() > MAX_HISTORY_LENGTH) {
+                conversationHistory.delete(0, conversationHistory.length() - MAX_HISTORY_LENGTH);
+            }
+            // 4. 更新状态并调用 AI
+            tvPartial.setText("正在思考...");
+            isAiResponding = true;
+            btnStart.setEnabled(false); // AI 响应时禁用录音
+
+            // 5. 调用 Ollama 流式 API
+            ollamaClient.streamGenerate(
+                    "你是一个专业的健康营养助手。请用中文回答以下问题，保持友好、简洁、实用。\n" +
+                            conversationHistory.toString(),
+                    new OllamaApiClient.StreamResponseCallback() {
+                        @Override
+                        public void onNewToken(String token) {
+                            // 流式接收每个词，更新 UI
+                            runOnUiThread(() -> {
+                                tvPartial.setText("AI 正在回答...");
+                                tvResult.append(token); // 逐词追加显示
+                                // 滚动到底部
+                                scrollToBottom();
+                            });
+                        }
+
+                        @Override
+                        public void onComplete(String fullResponse) {
+                            runOnUiThread(() -> {
+                                // 将完整的 AI 回复添加到对话历史
+                                conversationHistory.append("助手: ").append(fullResponse).append("\n");
+                                tvResult.append("\n");
+                                tvPartial.setText("AI 回答完成，可以继续说话");
+                                isAiResponding = false;
+                                if (!voskHelper.isRecording()) {
+                                    btnStart.setEnabled(true);
+                                }
+                            });
+                        }
+
+                        @Override
+                        public void onError(String error) {
+                            runOnUiThread(() -> {
+                                tvResult.append("\n❌ AI 错误: " + error + "\n");
+                                tvPartial.setText("AI 响应出错");
+                                isAiResponding = false;
+                                btnStart.setEnabled(true);
+                                scrollToBottom();
+                            });
+                        }
+                    }
+            );
+
+            scrollToBottom();
         });
     }
-
+    // 辅助方法：滚动 TextView 到底部
+    private void scrollToBottom() {
+        tvResult.post(() -> {
+            int scrollAmount = tvResult.getLayout().getLineTop(tvResult.getLineCount()) - tvResult.getHeight();
+            if (scrollAmount > 0) {
+                tvResult.scrollTo(0, scrollAmount);
+            }
+        });
+    }
     @Override
     public void onPartialResult(String text) {
         runOnUiThread(() -> {
@@ -194,8 +252,11 @@ public class TalkWithAIActivity extends AppCompatActivity implements VoskRecogni
     @Override
     public void onRecordingStopped() {
         runOnUiThread(() -> {
-            btnStart.setEnabled(true);
             btnStop.setEnabled(false);
+            // 只有当 AI 没有在响应时，才重新启用开始按钮
+            if (!isAiResponding) {
+                btnStart.setEnabled(true);
+            }
             tvPartial.setText("录音已停止");
         });
     }
