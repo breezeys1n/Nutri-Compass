@@ -15,7 +15,7 @@ public class RecipeAnalyzer {
     private Context context;
 
     // 本地 Ollama 地址 (确保你的电脑小羊驼正在运行且 OLLAMA_HOST=0.0.0.0)
-    private static final String OLLAMA_URL = "http://192.168.3.22:11434/api/chat";
+    private static final String OLLAMA_URL = "http://192.168.3.238:11434/api/chat";
     // 使用你通过 Nutri-Compass.txt 创建的定制模型
     private static final String CUSTOM_MODEL = "my_health_chef";
 

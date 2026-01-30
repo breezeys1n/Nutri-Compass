@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#FFF9F0">
@@ -33,7 +34,7 @@
                 android:textStyle="bold"
                 android:textColor="#FF6B35"
                 android:layout_marginBottom="16dp"
-                android:layout_gravity="center_horizontal"/>
+                android:layout_gravity="center_horizontal" />
 
             <!-- 用户数据展示 -->
             <TextView
@@ -46,7 +47,7 @@
                 android:gravity="center"
                 android:layout_marginBottom="24dp"
                 android:padding="12dp"
-                android:background="#FFF3E0"/>
+                android:background="#FFF3E0" />
 
             <!-- 食谱名称卡片 -->
             <LinearLayout
@@ -64,7 +65,7 @@
                     android:text="今日推荐"
                     android:textSize="12sp"
                     android:textColor="#FF9800"
-                    android:layout_marginBottom="8dp"/>
+                    android:layout_marginBottom="8dp" />
 
                 <TextView
                     android:id="@+id/tv_recipe_name"
@@ -73,7 +74,7 @@
                     android:text="番茄炒蛋"
                     android:textSize="32sp"
                     android:textStyle="bold"
-                    android:textColor="#333"/>
+                    android:textColor="#333" />
 
                 <!-- 新增：食谱描述 -->
                 <TextView
@@ -83,7 +84,7 @@
                     android:text=""
                     android:textSize="14sp"
                     android:textColor="#666"
-                    android:layout_marginTop="8dp"/>
+                    android:layout_marginTop="8dp" />
 
             </LinearLayout>
 
@@ -104,7 +105,7 @@
                     android:textSize="14sp"
                     android:textColor="#2196F3"
                     android:layout_marginBottom="12dp"
-                    android:textStyle="bold"/>
+                    android:textStyle="bold" />
 
                 <TextView
                     android:id="@+id/tv_recipe_reason"
@@ -113,7 +114,7 @@
                     android:text="根据您输入的减脂目标和现有食材，AI推荐这道菜..."
                     android:textSize="16sp"
                     android:textColor="#444"
-                    android:lineSpacingExtra="4dp"/>
+                    android:lineSpacingExtra="4dp" />
 
                 <!-- 新增：天气信息 -->
                 <TextView
@@ -123,7 +124,7 @@
                     android:text=""
                     android:textSize="14sp"
                     android:textColor="#666"
-                    android:layout_marginTop="12dp"/>
+                    android:layout_marginTop="12dp" />
 
             </LinearLayout>
 
@@ -144,7 +145,7 @@
                     android:textSize="14sp"
                     android:textColor="#4CAF50"
                     android:layout_marginBottom="12dp"
-                    android:textStyle="bold"/>
+                    android:textStyle="bold" />
 
                 <LinearLayout
                     android:id="@+id/layout_ingredients_container"
@@ -160,7 +161,7 @@
                         android:text="正在加载食材清单..."
                         android:textSize="16sp"
                         android:textColor="#444"
-                        android:lineSpacingExtra="4dp"/>
+                        android:lineSpacingExtra="4dp" />
 
                 </LinearLayout>
 
@@ -188,7 +189,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="⏰"
-                        android:textSize="24sp"/>
+                        android:textSize="24sp" />
 
                     <TextView
                         android:id="@+id/tv_prep_time"
@@ -197,7 +198,7 @@
                         android:text="准备时间"
                         android:textSize="12sp"
                         android:textColor="#666"
-                        android:layout_marginTop="4dp"/>
+                        android:layout_marginTop="4dp" />
 
                     <TextView
                         android:id="@+id/tv_prep_time_value"
@@ -206,7 +207,7 @@
                         android:text="10分钟"
                         android:textSize="16sp"
                         android:textStyle="bold"
-                        android:textColor="#333"/>
+                        android:textColor="#333" />
 
                 </LinearLayout>
 
@@ -215,7 +216,7 @@
                     android:layout_width="1dp"
                     android:layout_height="40dp"
                     android:layout_marginHorizontal="12dp"
-                    android:background="#E0E0E0"/>
+                    android:background="#E0E0E0" />
 
                 <LinearLayout
                     android:layout_width="0dp"
@@ -228,7 +229,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="🔥"
-                        android:textSize="24sp"/>
+                        android:textSize="24sp" />
 
                     <TextView
                         android:id="@+id/tv_cook_time"
@@ -237,7 +238,7 @@
                         android:text="烹饪时间"
                         android:textSize="12sp"
                         android:textColor="#666"
-                        android:layout_marginTop="4dp"/>
+                        android:layout_marginTop="4dp" />
 
                     <TextView
                         android:id="@+id/tv_cook_time_value"
@@ -246,7 +247,7 @@
                         android:text="15分钟"
                         android:textSize="16sp"
                         android:textStyle="bold"
-                        android:textColor="#333"/>
+                        android:textColor="#333" />
 
                 </LinearLayout>
 
@@ -255,7 +256,7 @@
                     android:layout_width="1dp"
                     android:layout_height="40dp"
                     android:layout_marginHorizontal="12dp"
-                    android:background="#E0E0E0"/>
+                    android:background="#E0E0E0" />
 
                 <LinearLayout
                     android:layout_width="0dp"
@@ -268,7 +269,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="⭐"
-                        android:textSize="24sp"/>
+                        android:textSize="24sp" />
 
                     <TextView
                         android:id="@+id/tv_difficulty"
@@ -277,7 +278,7 @@
                         android:text="难度等级"
                         android:textSize="12sp"
                         android:textColor="#666"
-                        android:layout_marginTop="4dp"/>
+                        android:layout_marginTop="4dp" />
 
                     <TextView
                         android:id="@+id/tv_difficulty_value"
@@ -286,7 +287,7 @@
                         android:text="简单"
                         android:textSize="16sp"
                         android:textStyle="bold"
-                        android:textColor="#333"/>
+                        android:textColor="#333" />
 
                 </LinearLayout>
 
@@ -302,21 +303,39 @@
                 android:layout_marginBottom="20dp"
                 android:elevation="4dp">
 
-                <TextView
-                    android:layout_width="wrap_content"
+                <!-- 修改后的标题栏，包含语音按钮 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="👨‍🍳 烹饪步骤"
-                    android:textSize="14sp"
-                    android:textColor="#FF9800"
+                    android:orientation="horizontal"
                     android:layout_marginBottom="12dp"
-                    android:textStyle="bold"/>
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="👨‍🍳 烹饪步骤"
+                        android:textSize="14sp"
+                        android:textColor="#FF9800"
+                        android:textStyle="bold" />
+
+                    <!-- 语音控制按钮 -->
+                    <ImageButton
+                        android:id="@+id/btn_voice_control"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:src="@android:drawable/ic_btn_speak_now"
+                        android:background="?android:attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="语音朗读"
+                        app:tint="#FF9800" />
+                </LinearLayout>
 
                 <LinearLayout
                     android:id="@+id/layout_steps_container"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical">
-
                     <!-- 步骤列表会在这里动态添加 -->
                     <TextView
                         android:id="@+id/tv_steps_placeholder"
@@ -326,7 +345,6 @@
                         android:textSize="16sp"
                         android:textColor="#444"
                         android:lineSpacingExtra="4dp"/>
-
                 </LinearLayout>
 
             </LinearLayout>
