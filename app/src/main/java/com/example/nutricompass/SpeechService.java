@@ -98,9 +98,15 @@ public class SpeechService implements TextToSpeech.OnInitListener {
     private void handleSpeechStart(String utteranceId) {
         Log.d(TAG, "开始朗读: " + utteranceId);
         isSpeaking = true;
-        if (callback != null && utteranceId.startsWith("step_")) {
-            int stepIndex = Integer.parseInt(utteranceId.split("_")[1]);
-            callback.onSpeechStart(stepIndex);
+
+        if (callback != null) {
+            if (utteranceId.startsWith("step_")) {
+                int stepIndex = Integer.parseInt(utteranceId.split("_")[1]);
+                callback.onSpeechStart(stepIndex);
+            } else if (utteranceId.equals("AI_RESPONSE")) {
+                // AI 播报开始，传 -1
+                callback.onSpeechStart(-1);
+            }
         }
         updateButtonState();
     }
@@ -111,20 +117,21 @@ public class SpeechService implements TextToSpeech.OnInitListener {
 
         if (utteranceId.startsWith("step_")) {
             int stepIndex = Integer.parseInt(utteranceId.split("_")[1]);
-            if (callback != null) {
-                callback.onSpeechDone(stepIndex);
-            }
+            if (callback != null) callback.onSpeechDone(stepIndex);
 
             if (stepIndex < cookingSteps.size() - 1) {
                 currentStepIndex = stepIndex + 1;
                 speakStep(currentStepIndex);
             } else {
                 currentStepIndex = 0;
-                if (callback != null) {
-                    callback.onSpeechDone(-1);
-                }
+                if (callback != null) callback.onSpeechDone(-1);
                 updateButtonState();
             }
+        } else if (utteranceId.equals("AI_RESPONSE")) {
+            if (callback != null) {
+                callback.onSpeechDone(-1);
+            }
+            updateButtonState();
         }
     }
 
@@ -144,7 +151,31 @@ public class SpeechService implements TextToSpeech.OnInitListener {
         }
         currentStepIndex = 0;
     }
+    public void speak(String text) {
+        if (!isInitialized || tts == null || text == null || text.isEmpty()) {
+            Log.w(TAG, "TTS未初始化或文本为空");
+            return;
+        }
 
+        stopSpeaking(); // 播报新内容前停止之前的朗读
+
+        isSpeaking = true;
+        updateButtonState();
+
+        // 设置 UtteranceId 以便触发 progress 回调
+        HashMap<String, String> params = new HashMap<>();
+        params.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "AI_RESPONSE");
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "AI_RESPONSE");
+        } else {
+            tts.speak(text, TextToSpeech.QUEUE_FLUSH, params);
+        }
+
+        if (callback != null) {
+            callback.onSpeechStart(-1); // -1 表示这不是固定的食谱步骤
+        }
+    }
     public void startSpeakingSteps() {
         if (!isInitialized) {
             Toast.makeText(context, "语音功能未准备好", Toast.LENGTH_SHORT).show();

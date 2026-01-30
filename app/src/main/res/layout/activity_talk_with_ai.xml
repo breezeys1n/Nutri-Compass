@@ -1,131 +1,91 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="16dp"
-    android:background="#f5f5f5"
-    tools:context=".TalkWithAIActivity">
+    android:background="#F5F5F7"
+    android:fillViewport="true">
 
-    <!-- 返回按钮 -->
-    <include
-        android:id="@+id/back_button"
-        layout="@layout/layout_back_button"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentStart="true"
-        android:layout_alignParentTop="true" />
-
-    <LinearLayout
+    <RelativeLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="vertical"
-        android:layout_below="@id/back_button">
+        android:layout_height="wrap_content"
+        android:padding="16dp">
 
-        <!-- 标题 -->
-        <TextView
-            android:id="@+id/tv_title"
+        <include
+            android:id="@+id/back_button"
+            layout="@layout/layout_back_button"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Vosk离线语音识别"
-            android:textSize="24sp"
-            android:textStyle="bold"
-            android:layout_gravity="center_horizontal"
-            android:layout_marginTop="20dp"
-            android:layout_marginBottom="20dp" />
+            android:layout_alignParentStart="true"
+            android:layout_alignParentTop="true" />
 
-        <!-- 状态提示区域 -->
-        <TextView
-            android:id="@+id/tv_status"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:padding="12dp"
-            android:background="#e3f2fd"
-            android:text="请先初始化模型"
-            android:textSize="16sp" />
+            android:layout_below="@id/back_button"
+            android:gravity="center_horizontal"
+            android:orientation="vertical"
+            android:layout_marginTop="20dp">
 
-        <!-- 部分结果提示区域 -->
-        <TextView
-            android:id="@+id/tv_partial"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:padding="12dp"
-            android:background="#fff3e0"
-            android:text="部分结果将显示在这里..."
-            android:textSize="14sp"
-            android:textColor="#ff9800" />
+            <FrameLayout
+                android:layout_width="160dp"
+                android:layout_height="160dp">
+                <View
+                    android:id="@+id/ripple_effect"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/shape_circle_glow"
+                    android:visibility="gone" />
+                <ImageView
+                    android:layout_width="80dp"
+                    android:layout_height="80dp"
+                    android:layout_gravity="center"
+                    android:src="@android:drawable/ic_menu_call"
+                    app:tint="#4CAF50" />
+            </FrameLayout>
 
-        <!-- 主结果显示区域 (可滚动) -->
-        <ScrollView
-            android:id="@+id/scrollView"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:layout_marginTop="10dp"
-            android:background="@android:color/white">
+            <TextView
+                android:id="@+id/tv_status"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="状态: 待命中"
+                android:textColor="#666666"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:layout_marginTop="16dp" />
+
+            <TextView
+                android:id="@+id/tv_partial"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:text=""
+                android:textColor="#999999"
+                android:layout_marginTop="8dp" />
 
             <TextView
                 android:id="@+id/tv_result"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:minHeight="120dp"
+                android:background="#FFFFFF"
+                android:elevation="2dp"
                 android:padding="16dp"
-                android:text="欢迎使用健康营养助手！请先初始化模型，然后点击“开始录音”与我对话。\n"
-                android:textSize="16sp"
-                android:lineSpacingExtra="4dp"
-                android:textColor="#333333" />
-
-        </ScrollView>
-
-        <!-- 按钮区域 -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginTop="20dp"
-            android:gravity="center_horizontal">
+                android:text="对话内容将在这里显示..."
+                android:textColor="#333333"
+                android:layout_marginTop="16dp" />
 
             <Button
-                android:id="@+id/btn_init"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:backgroundTint="#2196F3"
-                android:text="初始化模型"
-                android:textColor="@android:color/white"
-                android:layout_marginEnd="8dp" />
+                android:id="@+id/btn_finish_cooking"
+                android:layout_width="match_parent"
+                android:layout_height="60dp"
+                android:layout_marginTop="32dp"
+                android:layout_marginBottom="24dp"
+                android:backgroundTint="#FF9800"
+                android:text="结束烹饪"
+                android:textColor="#FFFFFF"
+                android:textSize="18sp" />
 
-            <Button
-                android:id="@+id/btn_start"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:backgroundTint="#4CAF50"
-                android:enabled="false"
-                android:text="开始录音"
-                android:textColor="@android:color/white"
-                android:layout_marginEnd="8dp" />
-
-            <Button
-                android:id="@+id/btn_stop"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:backgroundTint="#F44336"
-                android:enabled="false"
-                android:text="停止录音"
-                android:textColor="@android:color/white" />
         </LinearLayout>
-
-        <!-- 底部说明文字 -->
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:text="说明：首次使用需要初始化模型，请确保网络连接"
-            android:textSize="12sp"
-            android:textColor="#666" />
-
-    </LinearLayout>
-</RelativeLayout>
+    </RelativeLayout>
+</ScrollView>

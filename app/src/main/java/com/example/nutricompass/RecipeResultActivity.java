@@ -1,6 +1,6 @@
 package com.example.nutricompass;
 
-import android.nfc.Tag;
+import android.content.Intent;
 import android.os.Bundle;
 import android.speech.tts.TextToSpeech;
 import android.util.Log;
@@ -136,7 +136,7 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
         tvDifficultyValue.setText(convertDifficultyToString(recipe.getDifficulty()));
 
         if (recipe.getIngredients() != null) displayIngredients(recipe.getIngredients().toArray(new String[0]));
-        if (recipe.getCookingSteps() != null) displayCookingSteps(recipe.getCookingSteps().toArray(new String[0]));
+
         if (recipe.getCookingSteps() != null) {
             cookingStepsList.clear();
             cookingStepsList.addAll(recipe.getCookingSteps());
@@ -202,13 +202,10 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
 
     private void displayCookingSteps(String[] steps) {
         layoutStepsContainer.removeAllViews();
-        cookingStepsList.clear();
-
+        // 此处不再重复 clear cookingStepsList，因为在 displayRecipeFromObject 已处理
         if (steps == null) return;
 
         for (int i = 0; i < steps.length; i++) {
-            cookingStepsList.add(steps[i]);
-
             View v = LayoutInflater.from(this).inflate(R.layout.item_cooking_step, layoutStepsContainer, false);
             TextView tvStepNumber = v.findViewById(R.id.tv_step_number);
             TextView tvStepDescription = v.findViewById(R.id.tv_step_description);
@@ -217,15 +214,8 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
             tvStepDescription.setText(steps[i]);
 
             // 高亮当前朗读的步骤
-            final int stepIndex = i;
-            v.setTag(stepIndex);
-
+            v.setTag(i);
             layoutStepsContainer.addView(v);
-        }
-
-        // 设置烹饪步骤到语音服务
-        if (speechService != null) {
-            speechService.setCookingSteps(cookingStepsList);
         }
     }
 
@@ -236,7 +226,43 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
     }
 
     private void setupButtonListeners() {
-        btnNextStep.setOnClickListener(v -> tvCookingTips.setText("💡 烹饪指导功能正在开发中！"));
+        // 修改：点击跳转至语音助手界面，并传递当前食谱上下文
+        // 在 RecipeResultActivity.java 中找到 btnNextStep 的设置逻辑
+        btnNextStep.setOnClickListener(v -> {
+            Log.d(TAG, "开始点击跳转按钮...");
+
+            try {
+                // 1. 停止语音，但不要 shutdown！
+                // 如果调用了 shutdown()，会导致跳转后的页面无法再次获取 TTS 实例
+                if (speechService != null) {
+                    speechService.stopSpeaking();
+                }
+
+                // 2. 准备跳转数据
+                Intent intent = new Intent(RecipeResultActivity.this, TalkWithAIActivity.class);
+
+                // 获取食谱名称
+                String name = (tvRecipeName != null) ? tvRecipeName.getText().toString() : "未知食谱";
+                intent.putExtra("recipe_name", name);
+
+                // 获取步骤列表（确保 cookingStepsList 不为 null）
+                if (cookingStepsList != null) {
+                    intent.putStringArrayListExtra("recipe_steps", new ArrayList<>(cookingStepsList));
+                } else {
+                    intent.putStringArrayListExtra("recipe_steps", new ArrayList<>());
+                }
+
+                // 3. 执行跳转
+                Log.d(TAG, "正在启动 TalkWithAIActivity...");
+                startActivity(intent);
+
+            } catch (Exception e) {
+                Log.e(TAG, "跳转失败，原因: " + e.getMessage());
+                e.printStackTrace();
+                Toast.makeText(this, "页面跳转异常: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            }
+        });
+
         // 语音按钮监听
         if (btnVoiceControl != null) {
             btnVoiceControl.setOnClickListener(v -> {
@@ -324,54 +350,42 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
         }
     }
     private void checkTTSAvailability() {
+        // 使用数组或原子引用来绕过匿名内部类对变量 final 的限制
         final TextToSpeech[] ttsHolder = new TextToSpeech[1];
 
         ttsHolder[0] = new TextToSpeech(this, status -> {
-            if (status == TextToSpeech.SUCCESS) {
-                Log.d(TAG, "设备支持TTS");
+            try {
+                if (status == TextToSpeech.SUCCESS) {
+                    // 确保对象已经赋值给数组
+                    if (ttsHolder[0] != null) {
+                        Locale locale = ttsHolder[0].getLanguage();
+                        Log.d(TAG, "当前TTS语言: " + (locale != null ? locale.toString() : "未知"));
 
-                // 检查中文支持
-                int langResult = ttsHolder[0].setLanguage(Locale.CHINA);
-                switch (langResult) {
-                    case TextToSpeech.LANG_AVAILABLE:
-                        Log.d(TAG, "中文语音可用");
-                        break;
-                    case TextToSpeech.LANG_COUNTRY_AVAILABLE:
-                        Log.d(TAG, "中文（地区）语音可用");
-                        break;
-                    case TextToSpeech.LANG_COUNTRY_VAR_AVAILABLE:
-                        Log.d(TAG, "中文（地区变体）语音可用");
-                        break;
-                    case TextToSpeech.LANG_MISSING_DATA:
-                        Log.e(TAG, "缺少中文语音数据");
-                        Toast.makeText(this,
-                                "缺少中文语音数据，请到设置中安装语音包",
-                                Toast.LENGTH_LONG).show();
-                        break;
-                    case TextToSpeech.LANG_NOT_SUPPORTED:
-                        Log.e(TAG, "不支持中文语音");
-                        Toast.makeText(this,
-                                "设备不支持中文语音",
-                                Toast.LENGTH_LONG).show();
-                        break;
+                        int result = ttsHolder[0].setLanguage(Locale.CHINESE);
+                        if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                            Log.e(TAG, "设备不支持中文TTS或缺少语音包");
+                            runOnUiThread(() -> Toast.makeText(this, "设备缺少中文语音包，请在系统设置中检查", Toast.LENGTH_LONG).show());
+                        } else {
+                            Log.d(TAG, "TTS 检查通过：支持中文");
+                        }
+                    }
+                } else {
+                    Log.e(TAG, "TTS 初始化失败，错误码: " + status);
                 }
-
-                // 列出可用引擎
-                List<TextToSpeech.EngineInfo> engines = ttsHolder[0].getEngines();
-                Log.d(TAG, "可用的TTS引擎数量: " + engines.size());
-                for (TextToSpeech.EngineInfo engine : engines) {
-                    Log.d(TAG, "引擎: " + engine.name + ", 标签: " + engine.label);
+            } catch (Exception e) {
+                Log.e(TAG, "检查TTS可用性时发生异常", e);
+            } finally {
+                // 核心修复：安全地关闭临时实例
+                if (ttsHolder[0] != null) {
+                    try {
+                        ttsHolder[0].stop();
+                        ttsHolder[0].shutdown();
+                        ttsHolder[0] = null; // 彻底释放
+                    } catch (Exception e) {
+                        Log.e(TAG, "关闭临时TTS失败", e);
+                    }
                 }
-
-            } else {
-                Log.e(TAG, "设备不支持TTS，状态码: " + status);
-                Toast.makeText(this,
-                        "设备不支持文本转语音功能",
-                        Toast.LENGTH_LONG).show();
             }
-
-            // 清理临时TTS实例
-            ttsHolder[0].shutdown();
         });
     }
     @Override

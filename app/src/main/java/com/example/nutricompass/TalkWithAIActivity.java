@@ -1,8 +1,15 @@
 package com.example.nutricompass;
 
 import android.Manifest;
+import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.media.AudioManager;
+import android.media.ToneGenerator;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.util.Log;
+import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -12,260 +19,199 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
-public class TalkWithAIActivity extends AppCompatActivity implements VoskRecognitionHelper.RecognitionCallback {
-    private static final int PERMISSION_REQUEST_RECORD_AUDIO = 1;
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
 
-    private VoskRecognitionHelper voskHelper;
+public class TalkWithAIActivity extends AppCompatActivity implements VoskRecognitionHelper.RecognitionCallback, SpeechService.SpeechCallback {
+    private static final String TAG = "TalkWithAI_Log";
+    private static final String WAKE_WORD_REGEX = ".*(大厨|大叔|大初|大出).*";
+
     private TextView tvStatus, tvResult, tvPartial;
-    private Button btnStart, btnStop, btnInit;
-
+    private View rippleEffect;
+    private VoskRecognitionHelper voskHelper;
     private OllamaApiClient ollamaClient;
+    private SpeechService speechService;
+    private ToneGenerator toneGenerator;
+
     private boolean isAiResponding = false;
-    private StringBuilder conversationHistory = new StringBuilder();
-    private static final int MAX_HISTORY_LENGTH = 1000; // 控制上下文长度
-    private boolean isModelInitialized = false;
+    private boolean isWaitingForQuestion = false;
+
+    // --- 菜谱上下文 ---
+    private String recipeName;
+    private List<String> recipeSteps;
+
+    // --- 记忆管理：最近5轮 ---
+    private LinkedList<String> chatHistory = new LinkedList<>();
+    private static final int MAX_HISTORY_ROUNDS = 5;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_talk_with_ai);
 
-        BackButtonUtil.setupBackButton(this);
+        // 1. 获取数据
+        recipeName = getIntent().getStringExtra("recipe_name");
+        recipeSteps = getIntent().getStringArrayListExtra("recipe_steps");
 
-        // 初始化视图
+        // 2. 初始化 UI
+        BackButtonUtil.setupBackButton(this);
         tvStatus = findViewById(R.id.tv_status);
         tvResult = findViewById(R.id.tv_result);
         tvPartial = findViewById(R.id.tv_partial);
-        btnInit = findViewById(R.id.btn_init);
-        btnStart = findViewById(R.id.btn_start);
-        btnStop = findViewById(R.id.btn_stop);
+        rippleEffect = findViewById(R.id.ripple_effect);
+        Button btnFinish = findViewById(R.id.btn_finish_cooking);
 
-        // 设置初始状态
-        tvStatus.setText("请先初始化模型");
-        tvPartial.setText("部分结果将显示在这里...");
-        tvResult.setText("识别结果将显示在这里...\n");
+        btnFinish.setOnClickListener(v -> {
+            Intent intent = new Intent(this, NutritionReviewActivity.class);
+            startActivity(intent);
+            finish();
+        });
 
-        // 初始化识别助手
-        voskHelper = new VoskRecognitionHelper(this, this);
+        // 3. 服务初始化
         ollamaClient = new OllamaApiClient();
-        // 按钮点击事件
-        btnInit.setOnClickListener(v -> {
-            btnInit.setEnabled(false);
-            btnInit.setText("初始化中...");
-            tvStatus.setText("正在初始化模型...");
-            tvResult.setText("识别结果将显示在这里...\n");
-            voskHelper.initModel();
-        });
+        voskHelper = new VoskRecognitionHelper(this, this);
+        speechService = SpeechService.getInstance(this);
+        speechService.setCallback(this);
 
-        btnStart.setOnClickListener(v -> {
-            if (!isModelInitialized) {
-                Toast.makeText(this, "请先初始化模型", Toast.LENGTH_SHORT).show();
-                return;
-            }
-
-            if (checkPermission()) {
-                voskHelper.startRecording();
-            } else {
-                requestPermission();
-            }
-        });
-
-        btnStop.setOnClickListener(v -> {
-            if (voskHelper.isRecording()) {
-                voskHelper.stopRecording();
-            }
-        });
-
-        // 初始化按钮状态
-        btnStart.setEnabled(false);
-        btnStop.setEnabled(false);
-
-        // 检查权限
-        if (!checkPermission()) {
-            requestPermission();
+        try {
+            // 尖锐提示音
+            toneGenerator = new ToneGenerator(AudioManager.STREAM_ALARM, 100);
+        } catch (Exception e) {
+            Log.e(TAG, "ToneGenerator 异常");
         }
-        // 检查并请求权限
-        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO)
-                != PackageManager.PERMISSION_GRANTED) {
-            // 如果权限没有被授予，请求权限
-            requestPermissions(
-                    new String[]{Manifest.permission.RECORD_AUDIO},
-                    PERMISSION_REQUEST_RECORD_AUDIO
-            );
-        }
+
+        // 4. 加载模型（加载成功后会通过 onStatus 触发欢迎词）
+        tvStatus.setText("状态: 大厨正在穿围裙...");
+        voskHelper.initModel();
     }
 
     /**
-     * 检查录音权限
+     * 【新功能】自动生成并播报欢迎词
      */
-    private boolean checkPermission() {
-        return ContextCompat.checkSelfPermission(this,
-                Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED;
+    private void sayWelcomeMessage() {
+        isAiResponding = true; // 先锁住，防止播报欢迎词时用户说话
+        String welcomeText = "你好！我是你的 AI 大厨。今天我们要一起做" +
+                (recipeName != null ? recipeName : "美食") +
+                "，我已经准备好回答你的任何问题了，喊我'大厨大厨'即可！";
+
+        runOnUiThread(() -> {
+            tvStatus.setText("状态: 欢迎中...");
+            tvResult.setText("大厨: " + welcomeText);
+            startRippleAnimation();
+            speechService.speak(welcomeText); // 开始播报
+        });
     }
 
-    /**
-     * 请求录音权限
-     */
-    private void requestPermission() {
-        ActivityCompat.requestPermissions(this,
-                new String[]{Manifest.permission.RECORD_AUDIO},
-                PERMISSION_REQUEST_RECORD_AUDIO);
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == PERMISSION_REQUEST_RECORD_AUDIO) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                Toast.makeText(this, "录音权限已授予", Toast.LENGTH_SHORT).show();
-                if (isModelInitialized) {
-                    btnStart.setEnabled(true);
-                }
-            } else {
-                Toast.makeText(this, "需要录音权限才能使用语音识别", Toast.LENGTH_LONG).show();
-                btnStart.setEnabled(false);
-            }
+    private void playWakeTone() {
+        if (toneGenerator != null) {
+            toneGenerator.startTone(ToneGenerator.TONE_DTMF_S, 150);
         }
     }
 
     @Override
     public void onResult(String text) {
         runOnUiThread(() -> {
-            // 1. 显示用户说的话
-            tvResult.append("\n👤 您: " + text + "\n");
-            // 2. 将用户输入添加到对话历史
-            conversationHistory.append("用户: ").append(text).append("\n");
-            // 3. 修剪历史以避免过长
-            if (conversationHistory.length() > MAX_HISTORY_LENGTH) {
-                conversationHistory.delete(0, conversationHistory.length() - MAX_HISTORY_LENGTH);
+            if (text == null || text.isEmpty() || isAiResponding) return;
+
+            if (isWaitingForQuestion) {
+                isWaitingForQuestion = false;
+                askAi(text);
+                return;
             }
-            // 4. 更新状态并调用 AI
-            tvPartial.setText("正在思考...");
-            isAiResponding = true;
-            btnStart.setEnabled(false); // AI 响应时禁用录音
 
-            // 5. 调用 Ollama 流式 API
-            ollamaClient.streamGenerate(
-                    "你是一个专业的健康营养助手。请用中文回答以下问题，保持友好、简洁、实用。\n" +
-                            conversationHistory.toString(),
-                    new OllamaApiClient.StreamResponseCallback() {
-                        @Override
-                        public void onNewToken(String token) {
-                            // 流式接收每个词，更新 UI
-                            runOnUiThread(() -> {
-                                tvPartial.setText("AI 正在回答...");
-                                tvResult.append(token); // 逐词追加显示
-                                // 滚动到底部
-                                scrollToBottom();
-                            });
-                        }
-
-                        @Override
-                        public void onComplete(String fullResponse) {
-                            runOnUiThread(() -> {
-                                // 将完整的 AI 回复添加到对话历史
-                                conversationHistory.append("助手: ").append(fullResponse).append("\n");
-                                tvResult.append("\n");
-                                tvPartial.setText("AI 回答完成，可以继续说话");
-                                isAiResponding = false;
-                                if (!voskHelper.isRecording()) {
-                                    btnStart.setEnabled(true);
-                                }
-                            });
-                        }
-
-                        @Override
-                        public void onError(String error) {
-                            runOnUiThread(() -> {
-                                tvResult.append("\n❌ AI 错误: " + error + "\n");
-                                tvPartial.setText("AI 响应出错");
-                                isAiResponding = false;
-                                btnStart.setEnabled(true);
-                                scrollToBottom();
-                            });
-                        }
-                    }
-            );
-
-            scrollToBottom();
+            if (text.matches(WAKE_WORD_REGEX)) {
+                playWakeTone();
+                showVisualFeedback(true);
+                String question = text.replaceAll(".*(大厨大厨|大叔大叔|大厨|大叔)", "").trim();
+                if (question.length() > 1) {
+                    askAi(question);
+                } else {
+                    isWaitingForQuestion = true;
+                    tvStatus.setText("状态: 在呢，请讲...");
+                }
+            }
+            tvPartial.setText("");
         });
     }
-    // 辅助方法：滚动 TextView 到底部
-    private void scrollToBottom() {
-        tvResult.post(() -> {
-            int scrollAmount = tvResult.getLayout().getLineTop(tvResult.getLineCount()) - tvResult.getHeight();
-            if (scrollAmount > 0) {
-                tvResult.scrollTo(0, scrollAmount);
-            }
-        });
-    }
-    @Override
-    public void onPartialResult(String text) {
+
+    private void askAi(String question) {
+        isAiResponding = true;
+        isWaitingForQuestion = false;
+        voskHelper.stopRecording();
+
         runOnUiThread(() -> {
-            if (text != null && !text.isEmpty()) {
-                tvPartial.setText("正在识别: " + text);
-            } else {
-                tvPartial.setText("部分结果将显示在这里...");
+            tvStatus.setText("状态: 大厨思考中...");
+            tvResult.setText("问: " + question + "\n答: ");
+            startRippleAnimation();
+        });
+
+        // 组装 Prompt (上下文 + 5轮记忆)
+        StringBuilder sb = new StringBuilder();
+        sb.append("你是大厨。当前菜谱:").append(recipeName).append("。最近对话:\n");
+        for (String h : chatHistory) sb.append(h).append("\n");
+        sb.append("用户问:").append(question);
+
+        ollamaClient.streamGenerate(sb.toString(), new OllamaApiClient.StreamResponseCallback() {
+            @Override
+            public void onNewToken(String token) {
+                runOnUiThread(() -> tvResult.append(token));
             }
+
+            @Override
+            public void onComplete(String fullResponse) {
+                if (chatHistory.size() >= MAX_HISTORY_ROUNDS) chatHistory.removeFirst();
+                chatHistory.add("问:" + question + "|答:" + fullResponse);
+                runOnUiThread(() -> speechService.speak(fullResponse));
+            }
+
+            @Override
+            public void onError(String error) { resetToListening(); }
         });
     }
 
-    @Override
-    public void onError(String error) {
+    private void resetToListening() {
+        isAiResponding = false;
+        isWaitingForQuestion = false;
         runOnUiThread(() -> {
-            Toast.makeText(TalkWithAIActivity.this, error, Toast.LENGTH_LONG).show();
-            tvStatus.setText("错误: " + error);
-            btnInit.setEnabled(true);
-            btnInit.setText("重新初始化模型");
-            isModelInitialized = false;
-            btnStart.setEnabled(false);
+            showVisualFeedback(false);
+            tvStatus.setText("状态: 待命 (请说'大厨大厨')");
+            voskHelper.startRecording();
         });
+    }
+
+    private void showVisualFeedback(boolean show) {
+        if (rippleEffect != null) rippleEffect.setVisibility(show ? View.VISIBLE : View.GONE);
+    }
+
+    private void startRippleAnimation() {
+        if (!isAiResponding || rippleEffect == null || rippleEffect.getVisibility() != View.VISIBLE) return;
+        rippleEffect.animate().scaleX(1.3f).scaleY(1.3f).alpha(0.3f).setDuration(800).withEndAction(() -> {
+            rippleEffect.animate().scaleX(1.0f).scaleY(1.0f).alpha(1.0f).setDuration(800).withEndAction(this::startRippleAnimation).start();
+        }).start();
+    }
+
+    // --- 完整回调 ---
+    @Override
+    public void onSpeechDone(int stepIndex) {
+        // 欢迎词读完或回答读完，都回到监听状态
+        new Handler(Looper.getMainLooper()).postDelayed(this::resetToListening, 500);
     }
 
     @Override
     public void onStatus(String status) {
-        runOnUiThread(() -> {
-            tvStatus.setText("状态: " + status);
-
-            // 如果状态是模型加载成功，启用开始按钮
-            if (status.contains("模型加载成功")) {
-                isModelInitialized = true;
-                btnInit.setText("模型已加载");
-                btnInit.setEnabled(false);
-
-                if (checkPermission()) {
-                    btnStart.setEnabled(true);
-                }
-            }
-        });
-    }
-
-    @Override
-    public void onRecordingStarted() {
-        runOnUiThread(() -> {
-            btnStart.setEnabled(false);
-            btnStop.setEnabled(true);
-            tvPartial.setText("正在录音...请说话");
-        });
-    }
-
-    @Override
-    public void onRecordingStopped() {
-        runOnUiThread(() -> {
-            btnStop.setEnabled(false);
-            // 只有当 AI 没有在响应时，才重新启用开始按钮
-            if (!isAiResponding) {
-                btnStart.setEnabled(true);
-            }
-            tvPartial.setText("录音已停止");
-        });
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        if (voskHelper != null) {
-            voskHelper.release();
+        if (status.contains("成功")) {
+            // 模型初始化成功，立刻触发欢迎词
+            runOnUiThread(this::sayWelcomeMessage);
         }
     }
+
+    @Override public void onPartialResult(String text) { runOnUiThread(() -> tvPartial.setText("正在听: " + text)); }
+    @Override protected void onDestroy() { super.onDestroy(); if (toneGenerator != null) toneGenerator.release(); }
+    @Override public void onSpeechStart(int stepIndex) { runOnUiThread(() -> tvStatus.setText("状态: 大厨播报中...")); }
+    @Override public void onSpeechError(String error) { resetToListening(); }
+    @Override public void onSpeechStopped() { resetToListening(); }
+    @Override public void onRecordingStarted() {}
+    @Override public void onRecordingStopped() {}
+    @Override public void onError(String error) { Log.e(TAG, error); }
 }
