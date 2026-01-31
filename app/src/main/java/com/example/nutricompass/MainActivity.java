@@ -118,14 +118,6 @@ public class MainActivity extends AppCompatActivity {
                 proceedToRecipeGeneration();
             }
         });
-
-        // 在setupMainInterface()方法中添加
-        Button btnNutritionReview = findViewById(R.id.btn_nutrition_review);
-        btnNutritionReview.setOnClickListener(v -> {
-            // 跳转到营养复盘页面
-            Intent intent = new Intent(MainActivity.this, NutritionReviewActivity.class);
-            startActivity(intent);
-        });
     }
 
     /**

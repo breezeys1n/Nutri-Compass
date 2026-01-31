@@ -95,9 +95,6 @@ public class TalkWithAIActivity extends AppCompatActivity implements VoskRecogni
         voskHelper.initModel();
     }
 
-    /**
-     * 【新功能】自动生成并播报欢迎词
-     */
     private void sayWelcomeMessage() {
         isAiResponding = true; // 先锁住，防止播报欢迎词时用户说话
         String welcomeText = "你好！我是你的 AI 大厨。今天我们要一起做" +
@@ -162,9 +159,14 @@ public class TalkWithAIActivity extends AppCompatActivity implements VoskRecogni
 
         // 组装 Prompt (上下文 + 5轮记忆)
         StringBuilder sb = new StringBuilder();
-        sb.append("你是大厨。当前菜谱:").append(recipeName).append("。最近对话:\n");
-        for (String h : chatHistory) sb.append(h).append("\n");
-        sb.append("用户问:").append(question);
+        sb.append("系统指令：你是一位专业大厨，当前正在为一名正在做饭的用户进行一道特定食谱的烹饪指导，由于用户正在做饭你的回答要简练。\n");
+        sb.append("当前菜谱:").append(recipeName).append("。\n");
+        sb.append("最近对话:\n");
+        for (String h : chatHistory) {
+            sb.append(h).append("\n");
+        }
+        sb.append("用户问:").append(question).append("\n");
+        sb.append("你需要根据食谱以及上下文关系对用户进行指导，保证语气亲切。");
 
         ollamaClient.streamGenerate(sb.toString(), new OllamaApiClient.StreamResponseCallback() {
             @Override

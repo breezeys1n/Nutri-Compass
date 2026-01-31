@@ -34,7 +34,7 @@ public class CameraActivity extends AppCompatActivity {
 
     private ImageView imageView;
     private TextView tvStatus;
-    private Button btnTakePhoto, btnConfirmPhoto, btnPickPhoto,btnTalkWithAi; // 新增：btnPickPhoto
+    private Button btnTakePhoto, btnConfirmPhoto, btnPickPhoto; // 新增：btnPickPhoto
 
     private String userGoal;
     private String userStatusDesc = "";
@@ -55,14 +55,6 @@ public class CameraActivity extends AppCompatActivity {
         tvStatus.setText("当前目标: " + userGoal + "\n下一步：请拍摄或从相册选择食材照片");
 
         btnTakePhoto.setOnClickListener(v -> checkCameraPermissionAndOpenCamera());
-        //点击事件监听
-        btnTalkWithAi.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Intent intent = new Intent(CameraActivity.this, TalkWithAIActivity.class);
-                startActivity(intent);
-            }
-        });
         // 补全相册点击逻辑
         btnPickPhoto.setOnClickListener(v -> openGallery());
 
@@ -80,8 +72,6 @@ public class CameraActivity extends AppCompatActivity {
         btnTakePhoto = findViewById(R.id.btn_take_photo);
         btnConfirmPhoto = findViewById(R.id.btn_confirm_photo);
         btnPickPhoto = findViewById(R.id.btn_pick_photo); // 初始化新增的相册按钮
-        //ai语音识别对话
-        btnTalkWithAi=findViewById(R.id.btn_talk_with_ai);
     }
 
     // 补全：打开相册逻辑
