@@ -22,10 +22,13 @@ import androidx.core.content.ContextCompat;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.regex.Pattern;
 
 public class TalkWithAIActivity extends AppCompatActivity implements VoskRecognitionHelper.RecognitionCallback, SpeechService.SpeechCallback {
     private static final String TAG = "TalkWithAI_Log";
     private static final String WAKE_WORD_REGEX = ".*(大厨|大叔|大初|大出).*";
+    // 句子结束标点符号正则
+    private static final Pattern SENTENCE_END_PATTERN = Pattern.compile(".*[。！？.!?\\n]\\s*$");
 
     private TextView tvStatus, tvResult, tvPartial;
     private View rippleEffect;
@@ -36,6 +39,12 @@ public class TalkWithAIActivity extends AppCompatActivity implements VoskRecogni
 
     private boolean isAiResponding = false;
     private boolean isWaitingForQuestion = false;
+
+    // --- 流式响应缓冲 ---
+    private StringBuilder aiResponseBuffer = new StringBuilder();
+    private boolean isStreaming = false;
+    private boolean isSpeakingCurrentResponse = false;
+    private Handler responseHandler = new Handler(Looper.getMainLooper());
 
     // --- 菜谱上下文 ---
     private String recipeName;
@@ -138,11 +147,16 @@ public class TalkWithAIActivity extends AppCompatActivity implements VoskRecogni
     private void askAi(String question) {
         isAiResponding = true;
         isWaitingForQuestion = false;
+        isStreaming = true;
+        isSpeakingCurrentResponse = false;
         voskHelper.stopRecording();
+
+        // 清空之前的响应缓冲
+        aiResponseBuffer.setLength(0);
 
         runOnUiThread(() -> {
             tvStatus.setText("状态: 大厨思考中...");
-            tvResult.setText("问: " + question + "\n答: ");
+            tvResult.setText("问: " + question + "\n\n答: ");
             startRippleAnimation();
         });
 
@@ -155,24 +169,69 @@ public class TalkWithAIActivity extends AppCompatActivity implements VoskRecogni
         ollamaClient.streamGenerate(sb.toString(), new OllamaApiClient.StreamResponseCallback() {
             @Override
             public void onNewToken(String token) {
-                runOnUiThread(() -> tvResult.append(token));
+                runOnUiThread(() -> {
+                    // 更新UI显示
+                    tvResult.append(token);
+
+                    // 缓冲token
+                    aiResponseBuffer.append(token);
+
+                    // 检查是否到达句子结束点
+                    String currentText = aiResponseBuffer.toString();
+                    if (SENTENCE_END_PATTERN.matcher(currentText).matches() && !isSpeakingCurrentResponse) {
+                        // 到达句子结束点，开始语音合成
+                        String sentenceToSpeak = aiResponseBuffer.toString().trim();
+                        if (!sentenceToSpeak.isEmpty()) {
+                            isSpeakingCurrentResponse = true;
+                            speechService.speak(sentenceToSpeak);
+
+                            // 清空缓冲区，为下一句做准备
+                            aiResponseBuffer.setLength(0);
+                        }
+                    }
+                });
             }
 
             @Override
             public void onComplete(String fullResponse) {
-                if (chatHistory.size() >= MAX_HISTORY_ROUNDS) chatHistory.removeFirst();
-                chatHistory.add("问:" + question + "|答:" + fullResponse);
-                runOnUiThread(() -> speechService.speak(fullResponse));
+                isStreaming = false;
+
+                // 处理缓冲中剩余的内容（最后一句可能没有结束标点）
+                runOnUiThread(() -> {
+                    String remainingText = aiResponseBuffer.toString().trim();
+                    if (!remainingText.isEmpty() && !isSpeakingCurrentResponse) {
+                        speechService.speak(remainingText);
+                    } else if (remainingText.isEmpty() && !isSpeakingCurrentResponse) {
+                        // 如果缓冲区为空且当前没有在说话，直接调用resetToListening
+                        resetToListening();
+                    }
+
+                    // 保存到历史
+                    if (chatHistory.size() >= MAX_HISTORY_ROUNDS) chatHistory.removeFirst();
+                    chatHistory.add("问:" + question + "|答:" + fullResponse);
+                });
             }
 
             @Override
-            public void onError(String error) { resetToListening(); }
+            public void onError(String error) {
+                isStreaming = false;
+                isAiResponding = false;
+                runOnUiThread(() -> {
+                    tvStatus.setText("状态: 出错了，请重试");
+                    tvResult.append("\n[错误: " + error + "]");
+                    new Handler(Looper.getMainLooper()).postDelayed(() -> resetToListening(), 2000);
+                });
+            }
         });
     }
 
     private void resetToListening() {
         isAiResponding = false;
         isWaitingForQuestion = false;
+        isStreaming = false;
+        isSpeakingCurrentResponse = false;
+        aiResponseBuffer.setLength(0);
+
         runOnUiThread(() -> {
             showVisualFeedback(false);
             tvStatus.setText("状态: 待命 (请说'大厨大厨')");
@@ -194,8 +253,20 @@ public class TalkWithAIActivity extends AppCompatActivity implements VoskRecogni
     // --- 完整回调 ---
     @Override
     public void onSpeechDone(int stepIndex) {
-        // 欢迎词读完或回答读完，都回到监听状态
-        new Handler(Looper.getMainLooper()).postDelayed(this::resetToListening, 500);
+        // 当前句子读完了
+        isSpeakingCurrentResponse = false;
+
+        // 检查是否还有缓冲内容需要读
+        String remainingText = aiResponseBuffer.toString().trim();
+        if (!remainingText.isEmpty() && !isStreaming) {
+            // 流式生成已完成，但还有剩余内容
+            speechService.speak(remainingText);
+            aiResponseBuffer.setLength(0);
+        } else if (remainingText.isEmpty() && !isStreaming) {
+            // 流式生成已完成且所有内容都已读完，回到监听状态
+            new Handler(Looper.getMainLooper()).postDelayed(this::resetToListening, 500);
+        }
+        // 如果 isStreaming 为 true，说明还在生成中，等待下一个句子结束点
     }
 
     @Override
@@ -206,12 +277,43 @@ public class TalkWithAIActivity extends AppCompatActivity implements VoskRecogni
         }
     }
 
-    @Override public void onPartialResult(String text) { runOnUiThread(() -> tvPartial.setText("正在听: " + text)); }
-    @Override protected void onDestroy() { super.onDestroy(); if (toneGenerator != null) toneGenerator.release(); }
-    @Override public void onSpeechStart(int stepIndex) { runOnUiThread(() -> tvStatus.setText("状态: 大厨播报中...")); }
-    @Override public void onSpeechError(String error) { resetToListening(); }
-    @Override public void onSpeechStopped() { resetToListening(); }
-    @Override public void onRecordingStarted() {}
-    @Override public void onRecordingStopped() {}
-    @Override public void onError(String error) { Log.e(TAG, error); }
+    @Override
+    public void onPartialResult(String text) {
+        runOnUiThread(() -> tvPartial.setText("正在听: " + text));
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (toneGenerator != null) toneGenerator.release();
+        responseHandler.removeCallbacksAndMessages(null);
+    }
+
+    @Override
+    public void onSpeechStart(int stepIndex) {
+        runOnUiThread(() -> tvStatus.setText("状态: 大厨播报中..."));
+    }
+
+    @Override
+    public void onSpeechError(String error) {
+        isSpeakingCurrentResponse = false;
+        resetToListening();
+    }
+
+    @Override
+    public void onSpeechStopped() {
+        isSpeakingCurrentResponse = false;
+        resetToListening();
+    }
+
+    @Override
+    public void onRecordingStarted() {}
+
+    @Override
+    public void onRecordingStopped() {}
+
+    @Override
+    public void onError(String error) {
+        Log.e(TAG, error);
+    }
 }
