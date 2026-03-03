@@ -55,6 +55,7 @@
             android:name=".NutritionReviewActivity"
             android:exported="false"
             android:theme="@style/Theme.NutriCompass" />
+        <activity android:name=".WeeklyReportActivity" />
         <activity
             android:name=".MainActivity"
             android:exported="true">

@@ -22,7 +22,11 @@ public class Recipe implements Serializable{
     private int id;                      // 用于数据库的唯一ID
     private String date;                 // 创建日期
     private int calories;                // 总热量（为了与历史记录兼容）
-
+    private double protein;      // 蛋白质(g)
+    private double carbs;        // 碳水化合物(g)
+    private double fat;          // 脂肪(g)
+    private double fiber;        // 膳食纤维(g)
+    private String mealType;      // 早餐/午餐/晚餐/加餐
     public Recipe() {
         this.ingredients = new ArrayList<>();
         this.cookingSteps = new ArrayList<>();
@@ -158,10 +162,20 @@ public class Recipe implements Serializable{
     public void setTitle(String title) {
         this.name = title;  // 设置 name 字段
     }
+    public double getProtein() { return protein; }
+    public void setProtein(double protein) { this.protein = protein; }
 
-    /**
-     * 获取简要营养信息
-     */
+    public double getCarbs() { return carbs; }
+    public void setCarbs(double carbs) { this.carbs = carbs; }
+
+    public double getFat() { return fat; }
+    public void setFat(double fat) { this.fat = fat; }
+
+    public double getFiber() { return fiber; }
+    public void setFiber(double fiber) { this.fiber = fiber; }
+
+    public String getMealType() { return mealType; }
+    public void setMealType(String mealType) { this.mealType = mealType; }
     public String getBriefNutrition() {
         if (nutrition != null) {
             return String.format("%.0f大卡 | 蛋白%.0fg | 碳水%.0fg | 脂肪%.0fg",
