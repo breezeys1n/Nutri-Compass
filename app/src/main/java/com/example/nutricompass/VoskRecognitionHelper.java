@@ -100,7 +100,6 @@ public class VoskRecognitionHelper {
 
                     if (copySuccess) {
                         mainHandler.post(() -> callback.onStatus("模型文件复制完成，正在验证..."));
-
                         // 记录复制后的结构
                         logModelStructure(modelDir);
 
@@ -125,9 +124,6 @@ public class VoskRecognitionHelper {
         }).start();
     }
 
-    /**
-     * 记录assets中的内容
-     */
     private void logAssetsContent(AssetManager assetManager, String path) {
         try {
             String[] list = assetManager.list(path);
@@ -143,7 +139,6 @@ public class VoskRecognitionHelper {
             Log.e(TAG, "无法读取assets目录: " + path, e);
         }
     }
-
     /**
      * 检查模型文件夹是否有效
      */

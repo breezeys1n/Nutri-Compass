@@ -14,18 +14,13 @@ public class RecipeAnalyzer {
     private static final String TAG = "RecipeAnalyzer_Logic";
     private Context context;
 
-    // 本地 Ollama 地址 (确保你的电脑小羊驼正在运行且 OLLAMA_HOST=0.0.0.0)
+    // 本地 Ollama 地址
     private static final String OLLAMA_URL = "http://192.168.3.22:11434/api/chat";
-    // 使用你通过 Nutri-Compass.txt 创建的定制模型
     private static final String CUSTOM_MODEL = "my_health_chef";
-
     public RecipeAnalyzer(Context context) {
         this.context = context;
     }
 
-    /**
-     * 场景 A：拍照识别 + 生成食谱
-     */
     public Recipe analyzeRecipe(String imageBase64, String userGoal, String userCondition) {
         try {
             DoubaoImageRecognizer doubao = new DoubaoImageRecognizer();
@@ -39,9 +34,6 @@ public class RecipeAnalyzer {
         }
     }
 
-    /**
-     * 场景 B：纯文字/状态勾勒生成食谱
-     */
     public Recipe analyzeWithLocalIngredients(String detectedIngredients, String userGoal, String userCondition) {
         try {
 
@@ -53,8 +45,7 @@ public class RecipeAnalyzer {
             String weatherRaw = WeatherProvider.fetchWeather(coords);
             String weatherInfo = parseWeatherToText(weatherRaw);
 
-            // 2. 构建输入数据 (人设已在 my_health_chef 中，此处只传数据)
-            // 这里的 userCondition 就会承载 "我爬了山走了3w步很累" 这种描述
+            // 2. 构建输入数据
             String userPrompt = String.format(
                     "【我的 BMI】: %s\n【我的目标】：%s\n【身体状态】：%s\n【当前天气】：%s\n【现有食材】：%s",
                     bmiValue, userGoal, userCondition, weatherInfo, detectedIngredients
@@ -173,7 +164,6 @@ public class RecipeAnalyzer {
             Log.d(TAG, "=== 原始nutrition_info ===");
             Log.d(TAG, nut.toString());
 
-            // 使用新的解析方法处理带单位的字符串
             double calories = parseNutritionValue(nut.optString("calories", "0"));
             double protein = parseNutritionValue(nut.optString("protein", "0"));
             double carbs = parseNutritionValue(nut.optString("carbs", "0"));
@@ -182,11 +172,9 @@ public class RecipeAnalyzer {
             Log.d(TAG, String.format("解析后的营养值: 热量=%.1f, 蛋白质=%.1f, 碳水=%.1f, 脂肪=%.1f",
                     calories, protein, carbs, fat));
 
-            // 使用带参数的构造函数
             NutritionInfo nutrition = new NutritionInfo(calories, protein, carbs, fat);
             recipe.setNutrition(nutrition);
         } else {
-            // 使用默认值
             NutritionInfo defaultNutrition = new NutritionInfo(300, 15, 25, 10);
             recipe.setNutrition(defaultNutrition);
             Log.w(TAG, "JSON中没有nutrition_info，使用默认值");
@@ -212,7 +200,6 @@ public class RecipeAnalyzer {
         }
 
         try {
-            // 移除所有非数字字符（除了小数点和负号）
             String numericPart = valueWithUnit.replaceAll("[^0-9.-]", "");
             if (!numericPart.isEmpty()) {
                 return Double.parseDouble(numericPart);
@@ -223,21 +210,17 @@ public class RecipeAnalyzer {
 
         return 0.0;
     }
-    // 辅助方法：从JSON字符串中提取JSON内容
     private String extractJsonContent(String input) {
         if (input == null || input.isEmpty()) {
             return null;
         }
 
-        // 尝试查找JSON对象
         int startIndex = input.indexOf("{");
         int endIndex = input.lastIndexOf("}");
 
         if (startIndex != -1 && endIndex != -1 && endIndex > startIndex) {
             return input.substring(startIndex, endIndex + 1);
         }
-
-        // 尝试查找JSON数组
         startIndex = input.indexOf("[");
         endIndex = input.lastIndexOf("]");
 
@@ -247,27 +230,6 @@ public class RecipeAnalyzer {
 
         return null;
     }
-    // 辅助方法：安全获取double值
-    private double getDoubleValue(JSONObject obj, String key, double defaultValue) {
-        try {
-            if (obj.has(key)) {
-                Object value = obj.get(key);
-                if (value instanceof Number) {
-                    return ((Number) value).doubleValue();
-                } else if (value instanceof String) {
-                    try {
-                        return Double.parseDouble((String) value);
-                    } catch (NumberFormatException e) {
-                        Log.w(TAG, key + "字段不是有效的数字: " + value);
-                    }
-                }
-            }
-        } catch (Exception e) {
-            Log.w(TAG, "获取字段" + key + "失败: " + e.getMessage());
-        }
-        return defaultValue;
-    }
-
     private Recipe createErrorRecipe(String msg) {
         Recipe r = new Recipe();
         r.setName("AI 大厨休息中");

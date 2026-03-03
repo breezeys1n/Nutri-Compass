@@ -1,8 +1,6 @@
 package com.example.nutricompass;
 
-import android.Manifest;
 import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.media.AudioManager;
 import android.media.ToneGenerator;
 import android.os.Bundle;
@@ -12,35 +10,23 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
-import android.widget.Toast;
-
-import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
-
-import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.regex.Pattern;
 
 public class TalkWithAIActivity extends AppCompatActivity implements VoskRecognitionHelper.RecognitionCallback, SpeechService.SpeechCallback {
     private static final String TAG = "TalkWithAI_Log";
-    private static final String WAKE_WORD_REGEX = ".*(大厨|大叔|大初|大出).*";
-    // 句子结束标点符号正则
+    private static final String WAKE_WORD_REGEX = ".*(大厨).*";
     private static final Pattern SENTENCE_END_PATTERN = Pattern.compile(".*[。！？.!?\\n]\\s*$");
-
     private TextView tvStatus, tvResult, tvPartial;
     private View rippleEffect;
     private VoskRecognitionHelper voskHelper;
     private OllamaApiClient ollamaClient;
     private SpeechService speechService;
     private ToneGenerator toneGenerator;
-
     private boolean isAiResponding = false;
     private boolean isWaitingForQuestion = false;
-
-    // --- 流式响应缓冲 ---
     private StringBuilder aiResponseBuffer = new StringBuilder();
     private boolean isStreaming = false;
     private boolean isSpeakingCurrentResponse = false;
@@ -58,11 +44,9 @@ public class TalkWithAIActivity extends AppCompatActivity implements VoskRecogni
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_talk_with_ai);
-
         // 1. 获取数据
         recipeName = getIntent().getStringExtra("recipe_name");
         recipeSteps = getIntent().getStringArrayListExtra("recipe_steps");
-
         // 2. 初始化 UI
         BackButtonUtil.setupBackButton(this);
         tvStatus = findViewById(R.id.tv_status);
@@ -70,26 +54,22 @@ public class TalkWithAIActivity extends AppCompatActivity implements VoskRecogni
         tvPartial = findViewById(R.id.tv_partial);
         rippleEffect = findViewById(R.id.ripple_effect);
         Button btnFinish = findViewById(R.id.btn_finish_cooking);
-
         btnFinish.setOnClickListener(v -> {
             Intent intent = new Intent(this, NutritionReviewActivity.class);
             startActivity(intent);
             finish();
         });
-
         // 3. 服务初始化
         ollamaClient = new OllamaApiClient();
         voskHelper = new VoskRecognitionHelper(this, this);
         speechService = SpeechService.getInstance(this);
         speechService.setCallback(this);
-
         try {
-            // 尖锐提示音
+            //提示音
             toneGenerator = new ToneGenerator(AudioManager.STREAM_ALARM, 100);
         } catch (Exception e) {
             Log.e(TAG, "ToneGenerator 异常");
         }
-
         // 4. 加载模型（加载成功后会通过 onStatus 触发欢迎词）
         tvStatus.setText("状态: 大厨正在穿围裙...");
         voskHelper.initModel();
@@ -119,13 +99,11 @@ public class TalkWithAIActivity extends AppCompatActivity implements VoskRecogni
     public void onResult(String text) {
         runOnUiThread(() -> {
             if (text == null || text.isEmpty() || isAiResponding) return;
-
             if (isWaitingForQuestion) {
                 isWaitingForQuestion = false;
                 askAi(text);
                 return;
             }
-
             if (text.matches(WAKE_WORD_REGEX)) {
                 playWakeTone();
                 showVisualFeedback(true);
@@ -147,37 +125,58 @@ public class TalkWithAIActivity extends AppCompatActivity implements VoskRecogni
         isStreaming = true;
         isSpeakingCurrentResponse = false;
         voskHelper.stopRecording();
-
         // 清空之前的响应缓冲
         aiResponseBuffer.setLength(0);
-
         runOnUiThread(() -> {
             tvStatus.setText("状态: 大厨思考中...");
             tvResult.setText("问: " + question + "\n\n答: ");
             startRippleAnimation();
         });
-
-        // 组装 Prompt (上下文 + 5轮记忆)
+        // 组装 Prompt (上下文 + 5轮记忆 + 食谱步骤)
         StringBuilder sb = new StringBuilder();
-        sb.append("系统指令：你是一位专业大厨，当前正在为一名正在做饭的用户进行一道特定食谱的烹饪指导，由于用户正在做饭你的回答要简练。\n");
-        sb.append("当前菜谱:").append(recipeName).append("。\n");
-        sb.append("最近对话:\n");
-        for (String h : chatHistory) {
-            sb.append(h).append("\n");
-        }
-        sb.append("用户问:").append(question).append("\n");
-        sb.append("你需要根据食谱以及上下文关系对用户进行指导，保证语气亲切。");
+        sb.append("【系统指令】\n");
+        sb.append("你是一位专业大厨，正在指导用户烹饪。用户当前正在做菜，正在烹饪的食谱是：").append(recipeName).append("\n\n");
 
+        // 添加完整的食谱步骤
+        if (recipeSteps != null && !recipeSteps.isEmpty()) {
+            sb.append("【完整烹饪步骤】\n");
+            for (int i = 0; i < recipeSteps.size(); i++) {
+                sb.append(i + 1).append(". ").append(recipeSteps.get(i)).append("\n");
+            }
+            sb.append("\n");
+        }
+
+        // 添加聊天历史
+        if (!chatHistory.isEmpty()) {
+            sb.append("【最近对话记录】\n");
+            for (String h : chatHistory) {
+                sb.append(h).append("\n");
+            }
+            sb.append("\n");
+        }
+
+        sb.append("【用户当前提问】\n");
+        sb.append(question).append("\n\n");
+
+        sb.append("【重要规则】\n");
+        sb.append("1. 用户正在做饭，回答要简练、实用\n");
+        sb.append("2. 参考上面的完整烹饪步骤，不要随意发挥\n");
+        sb.append("3. 语气亲切，像一个经验丰富的大厨在厨房现场指导\n");
+        sb.append("4. 如果用户问的问题不在食谱范围内，可以适当发挥，但提醒用户注意安全\n");
+        sb.append("5. 回答控制在3-5句话内，不要长篇大论\n\n");
+
+        sb.append("请根据以上信息，为用户提供专业的烹饪指导：");
+
+        Log.d(TAG, "准备发送给AI的提示词长度: " + sb.length());
+        Log.d(TAG, "提示词内容: " + sb.toString());
         ollamaClient.streamGenerate(sb.toString(), new OllamaApiClient.StreamResponseCallback() {
             @Override
             public void onNewToken(String token) {
                 runOnUiThread(() -> {
                     // 更新UI显示
                     tvResult.append(token);
-
                     // 缓冲token
                     aiResponseBuffer.append(token);
-
                     // 检查是否到达句子结束点
                     String currentText = aiResponseBuffer.toString();
                     if (SENTENCE_END_PATTERN.matcher(currentText).matches() && !isSpeakingCurrentResponse) {
@@ -186,7 +185,6 @@ public class TalkWithAIActivity extends AppCompatActivity implements VoskRecogni
                         if (!sentenceToSpeak.isEmpty()) {
                             isSpeakingCurrentResponse = true;
                             speechService.speak(sentenceToSpeak);
-
                             // 清空缓冲区，为下一句做准备
                             aiResponseBuffer.setLength(0);
                         }
@@ -197,7 +195,6 @@ public class TalkWithAIActivity extends AppCompatActivity implements VoskRecogni
             @Override
             public void onComplete(String fullResponse) {
                 isStreaming = false;
-
                 // 处理缓冲中剩余的内容（最后一句可能没有结束标点）
                 runOnUiThread(() -> {
                     String remainingText = aiResponseBuffer.toString().trim();
@@ -207,7 +204,6 @@ public class TalkWithAIActivity extends AppCompatActivity implements VoskRecogni
                         // 如果缓冲区为空且当前没有在说话，直接调用resetToListening
                         resetToListening();
                     }
-
                     // 保存到历史
                     if (chatHistory.size() >= MAX_HISTORY_ROUNDS) chatHistory.removeFirst();
                     chatHistory.add("问:" + question + "|答:" + fullResponse);

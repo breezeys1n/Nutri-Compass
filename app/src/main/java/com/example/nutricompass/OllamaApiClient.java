@@ -7,8 +7,7 @@ import org.json.JSONObject;
 
 public class OllamaApiClient {
     private static final String TAG = "OllamaApiClient";
-    // 请将 OLLAMA_BASE_URL 替换为您电脑的实际 IP 地址
-    private static final String OLLAMA_BASE_URL = "http://192.168.3.22:11434"; // 示例，必须修改
+    private static final String OLLAMA_BASE_URL = "http://192.168.3.22:11434";
     private static final String MODEL_NAME = "qwen2.5:7b";
     private final OkHttpClient client;
 
@@ -65,7 +64,6 @@ public class OllamaApiClient {
                             String line;
                             while ((line = reader.readLine()) != null) {
                                 if (line.trim().isEmpty()) continue;
-
                                 // 解析 Ollama 的流式 JSON 响应
                                 try {
                                     JSONObject json = new JSONObject(line);
