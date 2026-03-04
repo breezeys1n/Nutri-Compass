@@ -1,9 +1,10 @@
-
+// CameraActivity.java
 package com.example.nutricompass;
 
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
@@ -22,19 +23,24 @@ import androidx.core.content.ContextCompat;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
 public class CameraActivity extends AppCompatActivity {
 
     private static final int REQUEST_IMAGE_CAPTURE = 1;
-    private static final int REQUEST_PICK_IMAGE = 2; // 新增：相册请求码
+    private static final int REQUEST_PICK_IMAGE = 2;
     private static final int REQUEST_CAMERA_PERMISSION = 100;
     private static final String TAG = "CameraActivity_ShanYu";
 
+    // ===== 新增：调试模式开关 =====
+    private static final boolean DEBUG_MODE = true;  // true = 使用默认图片，false = 正常拍照
+    private static final String DEFAULT_IMAGE_ASSET = "default_food.jpg"; // 默认图片放在 assets 文件夹
+
     private ImageView imageView;
     private TextView tvStatus;
-    private Button btnTakePhoto, btnConfirmPhoto, btnPickPhoto; // 新增：btnPickPhoto
+    private Button btnTakePhoto, btnConfirmPhoto, btnPickPhoto;
 
     private String userGoal;
     private String userStatusDesc = "";
@@ -47,23 +53,50 @@ public class CameraActivity extends AppCompatActivity {
 
         BackButtonUtil.setupBackButton(this);
 
-        // 接收 MainActivity 传递的数据
         userGoal = getIntent().getStringExtra("user_goal");
         userStatusDesc = getIntent().getStringExtra("user_status_desc");
 
         initViews();
-        tvStatus.setText("当前目标: " + userGoal + "\n下一步：请拍摄或从相册选择食材照片");
 
+        // 设置按钮监听器（先设置）
         btnTakePhoto.setOnClickListener(v -> checkCameraPermissionAndOpenCamera());
-        // 补全相册点击逻辑
         btnPickPhoto.setOnClickListener(v -> openGallery());
-
         btnConfirmPhoto.setOnClickListener(v -> {
             if (currentImageBitmap != null) {
                 processImageWithAI(currentImageBitmap);
             }
         });
-        btnConfirmPhoto.setEnabled(false);
+
+        // 根据模式设置按钮状态
+        if (DEBUG_MODE) {
+            loadDefaultImage();  // 这个方法里面会 setEnabled(true)
+        } else {
+            tvStatus.setText("当前目标: " + userGoal + "\n下一步：请拍摄或从相册选择食材照片");
+            btnConfirmPhoto.setEnabled(false);  // 非调试模式才设为 false
+            btnConfirmPhoto.setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xFF9E9E9E));
+        }
+    }
+
+    // ===== 新增：从 assets 加载默认图片 =====
+    private void loadDefaultImage() {
+        try {
+            InputStream is = getAssets().open(DEFAULT_IMAGE_ASSET);
+            currentImageBitmap = BitmapFactory.decodeStream(is);
+            is.close();
+
+            if (currentImageBitmap != null) {
+                imageView.setImageBitmap(currentImageBitmap);
+                tvStatus.setText("📷 [调试模式] 使用默认食材图片\n当前目标: " + userGoal);
+
+                btnConfirmPhoto.setEnabled(true);
+                btnConfirmPhoto.setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xFF4CAF50));
+
+                Log.d(TAG, "调试模式：已加载默认图片");
+            }
+        } catch (IOException e) {
+            Log.e(TAG, "加载默认图片失败", e);
+            tvStatus.setText("⚠️ 调试模式：默认图片不存在，请正常拍照");
+        }
     }
 
     private void initViews() {
@@ -71,10 +104,9 @@ public class CameraActivity extends AppCompatActivity {
         tvStatus = findViewById(R.id.tv_status);
         btnTakePhoto = findViewById(R.id.btn_take_photo);
         btnConfirmPhoto = findViewById(R.id.btn_confirm_photo);
-        btnPickPhoto = findViewById(R.id.btn_pick_photo); // 初始化新增的相册按钮
+        btnPickPhoto = findViewById(R.id.btn_pick_photo);
     }
 
-    // 补全：打开相册逻辑
     private void openGallery() {
         Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
         startActivityForResult(intent, REQUEST_PICK_IMAGE);
@@ -126,62 +158,25 @@ public class CameraActivity extends AppCompatActivity {
     }
 
     private void processImageWithAI(Bitmap bitmap) {
-        // 第一阶段：刚点击按钮
         tvStatus.setText("🚀 正在上传并识别食材...");
         btnConfirmPhoto.setEnabled(false);
-        // 变回灰色，表示处理中不可点击
         btnConfirmPhoto.setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xFF9E9E9E));
 
         String imageBase64 = convertBitmapToBase64(bitmap);
 
         new Thread(() -> {
             try {
-                // 模拟一个极短的视觉延迟，让用户看到“识别”和“分析”的文字切换（可选）
                 Thread.sleep(800);
-
-                // 第二阶段：更新文字（必须在 UI 线程执行）
                 runOnUiThread(() -> tvStatus.setText("🔍 已识别食材，正在 AI 分析食谱..."));
 
                 RecipeAnalyzer analyzer = new RecipeAnalyzer(this);
-                // 执行核心 AI 分析逻辑
                 Recipe recipe = analyzer.analyzeRecipe(imageBase64, userGoal, userStatusDesc);
 
-                // 第三阶段：分析完成
                 runOnUiThread(() -> {
                     if (recipe != null) {
                         tvStatus.setText("✨ 食谱生成成功！正在跳转...");
-
-                        Intent resultIntent = new Intent(CameraActivity.this, RecipeResultActivity.class);
-                        resultIntent.putExtra("recipe_name", recipe.getName());
-                        resultIntent.putExtra("recipe_description", recipe.getDescription());
-                        resultIntent.putExtra("recipe_reason", recipe.getReason());
-                        resultIntent.putExtra("recipe_weather", recipe.getWeatherCondition());
-                        resultIntent.putExtra("recipe_nutrition", recipe.getBriefNutrition());
-                        resultIntent.putExtra("recipe_prep_time", recipe.getPreparationTime());
-                        resultIntent.putExtra("recipe_cook_time", recipe.getCookingTime());
-
-                        if (recipe.getIngredients() != null) {
-                            resultIntent.putExtra("recipe_ingredients", recipe.getIngredients().toArray(new String[0]));
-                        }
-
-                        if (recipe.getCookingSteps() != null) {
-                            List<String> stepsList = new ArrayList<>();
-                            String tips = "";
-                            for (String step : recipe.getCookingSteps()) {
-                                if (step.contains("烹饪小贴士") || step.contains("小贴士：")) {
-                                    tips = step.replace("烹饪小贴士:", "").replace("小贴士：", "").trim();
-                                } else {
-                                    stepsList.add(step);
-                                }
-                            }
-                            resultIntent.putExtra("recipe_steps", stepsList.toArray(new String[0]));
-                            resultIntent.putExtra("recipe_cooking_tips", tips);
-                        }
-
-                        resultIntent.putExtra("recipe_difficulty_num", recipe.getDifficulty());
-
-                        startActivity(resultIntent);
-                        finish();
+                        // ... 跳转代码不变 ...
+                        navigateToResult(recipe);
                     } else {
                         tvStatus.setText("❌ AI 识别失败，请重新拍摄");
                         btnConfirmPhoto.setEnabled(true);
@@ -197,6 +192,40 @@ public class CameraActivity extends AppCompatActivity {
                 });
             }
         }).start();
+    }
+
+    // ===== 新增：跳转方法 =====
+    private void navigateToResult(Recipe recipe) {
+        Intent resultIntent = new Intent(CameraActivity.this, RecipeResultActivity.class);
+        resultIntent.putExtra("recipe_name", recipe.getName());
+        resultIntent.putExtra("recipe_description", recipe.getDescription());
+        resultIntent.putExtra("recipe_reason", recipe.getReason());
+        resultIntent.putExtra("recipe_weather", recipe.getWeatherCondition());
+        resultIntent.putExtra("recipe_nutrition", recipe.getBriefNutrition());
+        resultIntent.putExtra("recipe_prep_time", recipe.getPreparationTime());
+        resultIntent.putExtra("recipe_cook_time", recipe.getCookingTime());
+
+        if (recipe.getIngredients() != null) {
+            resultIntent.putExtra("recipe_ingredients", recipe.getIngredients().toArray(new String[0]));
+        }
+
+        if (recipe.getCookingSteps() != null) {
+            List<String> stepsList = new ArrayList<>();
+            String tips = "";
+            for (String step : recipe.getCookingSteps()) {
+                if (step.contains("烹饪小贴士") || step.contains("小贴士：")) {
+                    tips = step.replace("烹饪小贴士:", "").replace("小贴士：", "").trim();
+                } else {
+                    stepsList.add(step);
+                }
+            }
+            resultIntent.putExtra("recipe_steps", stepsList.toArray(new String[0]));
+            resultIntent.putExtra("recipe_cooking_tips", tips);
+        }
+
+        resultIntent.putExtra("recipe_difficulty_num", recipe.getDifficulty());
+        startActivity(resultIntent);
+        finish();
     }
 
     private String convertBitmapToBase64(Bitmap bitmap) {

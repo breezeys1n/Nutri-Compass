@@ -7,7 +7,7 @@ import org.json.JSONObject;
 
 public class OllamaApiClient {
     private static final String TAG = "OllamaApiClient";
-    private static final String OLLAMA_BASE_URL = "http://192.168.3.22:11434";
+    private static final String OLLAMA_BASE_URL = "http://10.135.13.252:11434";
     private static final String MODEL_NAME = "qwen2.5:7b";
     private final OkHttpClient client;
 

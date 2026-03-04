@@ -8,17 +8,27 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Scanner;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 public class RecipeAnalyzer {
     private static final String TAG = "RecipeAnalyzer_Logic";
     private Context context;
 
     // 本地 Ollama 地址
-    private static final String OLLAMA_URL = "http://192.168.3.22:11434/api/chat";
+    private static final String OLLAMA_URL = "http://10.135.13.252:11434/api/chat";
     private static final String CUSTOM_MODEL = "my_health_chef";
+
+    // 新增：RAG 客户端
+    private RecipeRetrievalClient retrievalClient;
+
     public RecipeAnalyzer(Context context) {
         this.context = context;
+        // 初始化 RAG 客户端
+        this.retrievalClient = new RecipeRetrievalClient();
     }
 
     public Recipe analyzeRecipe(String imageBase64, String userGoal, String userCondition) {
@@ -45,31 +55,85 @@ public class RecipeAnalyzer {
             String weatherRaw = WeatherProvider.fetchWeather(coords);
             String weatherInfo = parseWeatherToText(weatherRaw);
 
-            // 2. 构建输入数据
-            String userPrompt = String.format(
-                    "【我的 BMI】: %s\n【我的目标】：%s\n【身体状态】：%s\n【当前天气】：%s\n【现有食材】：%s",
-                    bmiValue, userGoal, userCondition, weatherInfo, detectedIngredients
-            );
+            // ===== 新增：RAG 检索参考食谱（不影响原有逻辑）=====
+            List<String> ingredientsList = parseIngredientsToList(detectedIngredients);
+            StringBuilder ragReference = new StringBuilder();
 
-            // 3. 构建请求体
+            if (!ingredientsList.isEmpty()) {
+                final List<RecipeRetrievalClient.ReferenceRecipe>[] referenceRecipes = new List[]{new ArrayList<>()};
+                final boolean[] retrievalDone = {false};
+                CountDownLatch latch = new CountDownLatch(1);
+
+                retrievalClient.searchRecipes(ingredientsList, userGoal, "", 3,
+                        new RecipeRetrievalClient.RetrievalCallback() {
+                            @Override
+                            public void onSuccess(List<RecipeRetrievalClient.ReferenceRecipe> recipes) {
+                                referenceRecipes[0] = recipes;
+                                retrievalDone[0] = true;
+                                latch.countDown();
+                                Log.d(TAG, "找到 " + recipes.size() + " 个参考食谱");
+                            }
+
+                            @Override
+                            public void onError(String error) {
+                                Log.e(TAG, "RAG检索失败: " + error);
+                                retrievalDone[0] = true;
+                                latch.countDown();
+                            }
+                        }
+                );
+
+                // 等待最多 1.5 秒，不影响主流程
+                latch.await(1500, TimeUnit.MILLISECONDS);
+
+                // 如果有结果，添加到参考信息中
+                if (retrievalDone[0] && !referenceRecipes[0].isEmpty()) {
+                    ragReference.append("\n【参考食谱】\n");
+                    for (RecipeRetrievalClient.ReferenceRecipe ref : referenceRecipes[0]) {
+                        ragReference.append("- ").append(ref.name)
+                                .append(" (").append(ref.cuisine).append(")")
+                                .append(" 适合: ").append(String.join("、", ref.healthTags))
+                                .append("\n");
+                    }
+                }
+            }
+            // ===== RAG 检索结束 =====
+
+            // 2. 构建输入数据（原有格式完全不变，只是在最后加了参考食谱）
+            String userPrompt;
+            if (ragReference.length() > 0) {
+                // 如果有参考食谱，加在最后（不影响前面格式）
+                userPrompt = String.format(
+                        "【我的 BMI】: %s\n【我的目标】：%s\n【身体状态】：%s\n【当前天气】：%s\n【现有食材】：%s%s",
+                        bmiValue, userGoal, userCondition, weatherInfo, detectedIngredients, ragReference.toString()
+                );
+            } else {
+                // 如果没有参考食谱，和原来一模一样
+                userPrompt = String.format(
+                        "【我的 BMI】: %s\n【我的目标】：%s\n【身体状态】：%s\n【当前天气】：%s\n【现有食材】：%s",
+                        bmiValue, userGoal, userCondition, weatherInfo, detectedIngredients
+                );
+            }
+
+            // 3. 构建请求体（完全不变）
             JSONObject root = new JSONObject();
             root.put("model", CUSTOM_MODEL);
             root.put("stream", false);
 
             JSONArray messages = new JSONArray();
-            // 直接以 user 身份发送数据，my_health_chef 会自动触发 system 里的营养师逻辑
             messages.put(new JSONObject().put("role", "user").put("content", userPrompt));
             root.put("messages", messages);
 
             Log.d(TAG, "正在请求 Ollama (模型: " + CUSTOM_MODEL + ")...");
+            Log.d(TAG, "最终 Prompt: " + userPrompt);  // 可以看看加了什么
 
-            // 4. 网络请求
+            // 4. 网络请求（完全不变）
             URL url = new URL(OLLAMA_URL);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Content-Type", "application/json");
             conn.setConnectTimeout(5000);
-            conn.setReadTimeout(30000); // AI 思考可能需要时间，给 30 秒
+            conn.setReadTimeout(30000);
             conn.setDoOutput(true);
 
             try (OutputStream os = conn.getOutputStream()) {
@@ -93,6 +157,23 @@ public class RecipeAnalyzer {
         return createErrorRecipe("无法连接到电脑 AI 大厨，请检查小羊驼是否开启");
     }
 
+    // 新增：解析食材列表
+    private List<String> parseIngredientsToList(String detectedIngredients) {
+        List<String> ingredients = new ArrayList<>();
+        if (detectedIngredients == null || detectedIngredients.isEmpty()) {
+            return ingredients;
+        }
+        String[] parts = detectedIngredients.split("[，,]");
+        for (String part : parts) {
+            String trimmed = part.trim();
+            if (!trimmed.isEmpty()) {
+                ingredients.add(trimmed);
+            }
+        }
+        return ingredients;
+    }
+
+    // 以下方法完全不变
     private String parseWeatherToText(String raw) {
         if (raw == null || !raw.contains("{")) return "天气适宜";
         try {
@@ -107,7 +188,6 @@ public class RecipeAnalyzer {
     }
 
     private Recipe parseRecipeFromJson(String jsonStr, String cond, String weather) throws Exception {
-        // 尝试提取JSON内容（处理各种格式）
         String jsonContent = extractJsonContent(jsonStr);
         if (jsonContent == null) {
             Log.e(TAG, "无法从AI响应中提取JSON");
@@ -126,7 +206,6 @@ public class RecipeAnalyzer {
         recipe.setUserCondition(cond);
         recipe.setWeatherCondition(weather);
 
-        // 处理食材列表
         JSONArray ingArray = json.optJSONArray("ingredients");
         if (ingArray != null) {
             for (int i = 0; i < ingArray.length(); i++) {
@@ -144,11 +223,9 @@ public class RecipeAnalyzer {
             }
         }
 
-        // 处理烹饪步骤
         JSONArray stp = json.optJSONArray("cooking_steps");
         if (stp != null) {
             for (int i = 0; i < stp.length(); i++) {
-                // 使用 optString 替代 getString，并检查 isNull，防止索引溢出或空指针
                 if (!stp.isNull(i)) {
                     String step = stp.optString(i, "");
                     if (!step.trim().isEmpty()) {
@@ -158,7 +235,6 @@ public class RecipeAnalyzer {
             }
         }
 
-        // 处理营养信息
         JSONObject nut = json.optJSONObject("nutrition_info");
         if (nut != null) {
             Log.d(TAG, "=== 原始nutrition_info ===");
@@ -180,7 +256,6 @@ public class RecipeAnalyzer {
             Log.w(TAG, "JSON中没有nutrition_info，使用默认值");
         }
 
-        // 其他字段
         String tips = json.optString("dietary_tips", "");
         if (!tips.isEmpty()) {
             recipe.setDescription(recipe.getDescription() + "\n\n💡提示：" + tips);
@@ -194,11 +269,11 @@ public class RecipeAnalyzer {
 
         return recipe;
     }
+
     private double parseNutritionValue(String valueWithUnit) {
         if (valueWithUnit == null || valueWithUnit.trim().isEmpty()) {
             return 0.0;
         }
-
         try {
             String numericPart = valueWithUnit.replaceAll("[^0-9.-]", "");
             if (!numericPart.isEmpty()) {
@@ -207,29 +282,26 @@ public class RecipeAnalyzer {
         } catch (NumberFormatException e) {
             Log.e(TAG, "解析营养值失败: " + valueWithUnit, e);
         }
-
         return 0.0;
     }
+
     private String extractJsonContent(String input) {
         if (input == null || input.isEmpty()) {
             return null;
         }
-
         int startIndex = input.indexOf("{");
         int endIndex = input.lastIndexOf("}");
-
         if (startIndex != -1 && endIndex != -1 && endIndex > startIndex) {
             return input.substring(startIndex, endIndex + 1);
         }
         startIndex = input.indexOf("[");
         endIndex = input.lastIndexOf("]");
-
         if (startIndex != -1 && endIndex != -1 && endIndex > startIndex) {
             return input.substring(startIndex, endIndex + 1);
         }
-
         return null;
     }
+
     private Recipe createErrorRecipe(String msg) {
         Recipe r = new Recipe();
         r.setName("AI 大厨休息中");
