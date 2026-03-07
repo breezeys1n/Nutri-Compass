@@ -1,3 +1,4 @@
+// RecipeAnalyzer.java
 package com.example.nutricompass;
 
 import android.content.Context;
@@ -9,6 +10,8 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Scanner;
 import java.util.concurrent.CountDownLatch;
@@ -19,7 +22,7 @@ public class RecipeAnalyzer {
     private Context context;
 
     // 本地 Ollama 地址
-    private static final String OLLAMA_URL = "http://10.135.13.252:11434/api/chat";
+    private static final String OLLAMA_URL = "http://10.138.79.96:11434/api/chat";
     private static final String CUSTOM_MODEL = "my_health_chef";
 
     // 新增：RAG 客户端
@@ -46,7 +49,6 @@ public class RecipeAnalyzer {
 
     public Recipe analyzeWithLocalIngredients(String detectedIngredients, String userGoal, String userCondition) {
         try {
-
             UserProfile userProfile = new UserProfile(context);
             double bmiValue = userProfile.calculateBMI();
 
@@ -55,23 +57,45 @@ public class RecipeAnalyzer {
             String weatherRaw = WeatherProvider.fetchWeather(coords);
             String weatherInfo = parseWeatherToText(weatherRaw);
 
-            // ===== 新增：RAG 检索参考食谱（不影响原有逻辑）=====
+            // ===== 新增：RAG 检索参考食谱 =====
             List<String> ingredientsList = parseIngredientsToList(detectedIngredients);
             StringBuilder ragReference = new StringBuilder();
 
             if (!ingredientsList.isEmpty()) {
-                final List<RecipeRetrievalClient.ReferenceRecipe>[] referenceRecipes = new List[]{new ArrayList<>()};
+                final List<JSONObject>[] referenceRecipes = new List[]{new ArrayList<>()};
                 final boolean[] retrievalDone = {false};
                 CountDownLatch latch = new CountDownLatch(1);
 
-                retrievalClient.searchRecipes(ingredientsList, userGoal, "", 3,
-                        new RecipeRetrievalClient.RetrievalCallback() {
+                retrievalClient.searchRawRecipes(ingredientsList, userGoal, "", 5,
+                        new RecipeRetrievalClient.RawJsonCallback() {
+                            // 在 onSuccess 回调中
                             @Override
-                            public void onSuccess(List<RecipeRetrievalClient.ReferenceRecipe> recipes) {
-                                referenceRecipes[0] = recipes;
+                            public void onSuccess(List<JSONObject> recipes) {
+                                try {
+                                    // 按质量分数排序筛选前3个
+                                    List<JSONObject> filtered = new ArrayList<>();
+
+                                    // 排序
+                                    Collections.sort(recipes, new Comparator<JSONObject>() {
+                                        @Override
+                                        public int compare(JSONObject a, JSONObject b) {
+                                            double scoreA = a.optDouble("quality_score", 0);
+                                            double scoreB = b.optDouble("quality_score", 0);
+                                            return Double.compare(scoreB, scoreA);
+                                        }
+                                    });
+
+                                    for (int i = 0; i < Math.min(3, recipes.size()); i++) {
+                                        filtered.add(recipes.get(i));
+                                    }
+
+                                    referenceRecipes[0] = filtered;
+                                } catch (Exception e) {
+                                    Log.e(TAG, "处理食谱列表失败: " + e.getMessage());
+                                }
                                 retrievalDone[0] = true;
                                 latch.countDown();
-                                Log.d(TAG, "找到 " + recipes.size() + " 个参考食谱");
+                                Log.d(TAG, "找到 " + recipes.size() + " 个参考食谱，选用前 " + referenceRecipes[0].size() + " 个");
                             }
 
                             @Override
@@ -83,17 +107,23 @@ public class RecipeAnalyzer {
                         }
                 );
 
-                // 等待最多 1.5 秒，不影响主流程
                 latch.await(1500, TimeUnit.MILLISECONDS);
 
-                // 如果有结果，添加到参考信息中
+                // 如果有结果，添加到参考信息中（只加标题，保持简洁）
                 if (retrievalDone[0] && !referenceRecipes[0].isEmpty()) {
-                    ragReference.append("\n【参考食谱】\n");
-                    for (RecipeRetrievalClient.ReferenceRecipe ref : referenceRecipes[0]) {
-                        ragReference.append("- ").append(ref.name)
-                                .append(" (").append(ref.cuisine).append(")")
-                                .append(" 适合: ").append(String.join("、", ref.healthTags))
-                                .append("\n");
+                    ragReference.append("\n【参考食谱】");
+                    for (JSONObject ref : referenceRecipes[0]) {
+                        if (ref.has("title")) {
+                            ragReference.append(" ").append(ref.optString("title"));
+                            if (ref.has("cuisine")) {
+                                ragReference.append("(").append(ref.optString("cuisine")).append(")");
+                            }
+                            ragReference.append(",");
+                        }
+                    }
+                    // 去掉最后一个逗号
+                    if (ragReference.length() > 0) {
+                        ragReference.setLength(ragReference.length() - 1);
                     }
                 }
             }
@@ -121,11 +151,14 @@ public class RecipeAnalyzer {
             root.put("stream", false);
 
             JSONArray messages = new JSONArray();
-            messages.put(new JSONObject().put("role", "user").put("content", userPrompt));
+            JSONObject userMessage = new JSONObject();
+            userMessage.put("role", "user");
+            userMessage.put("content", userPrompt);
+            messages.put(userMessage);
             root.put("messages", messages);
 
             Log.d(TAG, "正在请求 Ollama (模型: " + CUSTOM_MODEL + ")...");
-            Log.d(TAG, "最终 Prompt: " + userPrompt);  // 可以看看加了什么
+            Log.d(TAG, "最终 Prompt: " + userPrompt);
 
             // 4. 网络请求（完全不变）
             URL url = new URL(OLLAMA_URL);
