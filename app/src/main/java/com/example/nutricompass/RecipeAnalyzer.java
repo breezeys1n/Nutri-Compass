@@ -22,7 +22,7 @@ public class RecipeAnalyzer {
     private Context context;
 
     // 本地 Ollama 地址
-    private static final String OLLAMA_URL = "http://10.138.79.96:11434/api/chat";
+    private static final String OLLAMA_URL = "http://10.128.141.95:11434/api/chat";
     private static final String CUSTOM_MODEL = "my_health_chef";
 
     // 新增：RAG 客户端
@@ -68,14 +68,12 @@ public class RecipeAnalyzer {
 
                 retrievalClient.searchRawRecipes(ingredientsList, userGoal, "", 5,
                         new RecipeRetrievalClient.RawJsonCallback() {
-                            // 在 onSuccess 回调中
                             @Override
                             public void onSuccess(List<JSONObject> recipes) {
                                 try {
-                                    // 按质量分数排序筛选前3个
+                                    // 按质量分数排序筛选前2个
                                     List<JSONObject> filtered = new ArrayList<>();
 
-                                    // 排序
                                     Collections.sort(recipes, new Comparator<JSONObject>() {
                                         @Override
                                         public int compare(JSONObject a, JSONObject b) {
@@ -85,7 +83,8 @@ public class RecipeAnalyzer {
                                         }
                                     });
 
-                                    for (int i = 0; i < Math.min(3, recipes.size()); i++) {
+                                    // 只取前2个最相关的食谱
+                                    for (int i = 0; i < Math.min(2, recipes.size()); i++) {
                                         filtered.add(recipes.get(i));
                                     }
 
@@ -109,38 +108,74 @@ public class RecipeAnalyzer {
 
                 latch.await(1500, TimeUnit.MILLISECONDS);
 
-                // 如果有结果，添加到参考信息中（只加标题，保持简洁）
+                // 如果有结果，添加完整食谱内容
                 if (retrievalDone[0] && !referenceRecipes[0].isEmpty()) {
-                    ragReference.append("\n【参考食谱】");
-                    for (JSONObject ref : referenceRecipes[0]) {
-                        if (ref.has("title")) {
-                            ragReference.append(" ").append(ref.optString("title"));
-                            if (ref.has("cuisine")) {
-                                ragReference.append("(").append(ref.optString("cuisine")).append(")");
+                    ragReference.append("\n\n【参考食谱（供你借鉴烹饪方法和搭配思路）】");
+
+                    for (int idx = 0; idx < referenceRecipes[0].size(); idx++) {
+                        JSONObject ref = referenceRecipes[0].get(idx);
+
+                        ragReference.append("\n\n--- 参考食谱 ").append(idx + 1).append(" ---\n");
+
+                        // 食谱名称（注意：这里是name不是title）
+                        if (ref.has("name")) {
+                            ragReference.append("菜名：").append(ref.optString("name")).append("\n");
+                        }
+
+                        // 菜系
+                        if (ref.has("cuisine")) {
+                            ragReference.append("菜系：").append(ref.optString("cuisine")).append("\n");
+                        }
+
+                        // 食材列表
+                        if (ref.has("ingredients")) {
+                            ragReference.append("食材：\n");
+                            JSONArray ingredients = ref.getJSONArray("ingredients");
+                            for (int i = 0; i < ingredients.length(); i++) {
+                                JSONObject ing = ingredients.getJSONObject(i);
+                                String name = ing.optString("name", "");
+                                String amount = ing.optString("amount", "适量");
+                                ragReference.append("  - ").append(name).append(" ").append(amount).append("\n");
                             }
-                            ragReference.append(",");
+                        }
+
+                        // 烹饪步骤
+                        if (ref.has("steps")) {
+                            ragReference.append("步骤：\n");
+                            JSONArray steps = ref.getJSONArray("steps");
+                            for (int i = 0; i < steps.length(); i++) {
+                                ragReference.append("  ").append(i + 1).append(". ").append(steps.getString(i)).append("\n");
+                            }
                         }
                     }
-                    // 去掉最后一个逗号
-                    if (ragReference.length() > 0) {
-                        ragReference.setLength(ragReference.length() - 1);
-                    }
+                    ragReference.append("\n【以上是参考食谱，请借鉴其烹饪方法和搭配思路】\n");
                 }
             }
             // ===== RAG 检索结束 =====
 
-            // 2. 构建输入数据（原有格式完全不变，只是在最后加了参考食谱）
+            // 2. 构建输入数据
             String userPrompt;
             if (ragReference.length() > 0) {
-                // 如果有参考食谱，加在最后（不影响前面格式）
+                // 如果有参考食谱，把完整的食谱内容传过去
                 userPrompt = String.format(
-                        "【我的 BMI】: %s\n【我的目标】：%s\n【身体状态】：%s\n【当前天气】：%s\n【现有食材】：%s%s",
+                        "【我的 BMI】: %s\n" +
+                                "【我的目标】：%s\n" +
+                                "【身体状态】：%s\n" +
+                                "【当前天气】：%s\n" +
+                                "【现有食材】：%s\n" +
+                                "%s\n" +
+                                "请根据以上信息，为我生成一道创意食谱。可以参考参考食谱的烹饪方法，但要结合我的现有食材进行创新。",
                         bmiValue, userGoal, userCondition, weatherInfo, detectedIngredients, ragReference.toString()
                 );
             } else {
-                // 如果没有参考食谱，和原来一模一样
+                // 如果没有参考食谱，和原来一样
                 userPrompt = String.format(
-                        "【我的 BMI】: %s\n【我的目标】：%s\n【身体状态】：%s\n【当前天气】：%s\n【现有食材】：%s",
+                        "【我的 BMI】: %s\n" +
+                                "【我的目标】：%s\n" +
+                                "【身体状态】：%s\n" +
+                                "【当前天气】：%s\n" +
+                                "【现有食材】：%s\n" +
+                                "\n请根据以上信息，为我生成一道创意食谱。",
                         bmiValue, userGoal, userCondition, weatherInfo, detectedIngredients
                 );
             }
