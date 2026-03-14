@@ -368,7 +368,7 @@ def main():
     # 创建爬虫实例，会自动使用 rag-service/meishichina_data
     crawler = MeiShiChinaCrawler()
     
-    PAGES_TO_CRAWL = 2
+    PAGES_TO_CRAWL = 25
     
     print(f"\n🎯 目标: 每个菜系爬取 {PAGES_TO_CRAWL} 页")
     print(f"数据保存目录: {crawler.save_dir}")
