@@ -3,7 +3,7 @@ package com.example.nutricompass;
 
 public class Config {
     // 你的电脑IP（用 ipconfig 查看）
-    public static final String YOUR_IP = "10.128.141.95";  // 改成你的实际IP
+    public static final String YOUR_IP = "10.133.130.187";  // 改成你的实际IP
 
     // RAG 服务地址
     public static final String RAG_SERVICE_URL =
@@ -12,4 +12,6 @@ public class Config {
     // Ollama 服务地址
     public static final String OLLAMA_URL =
             "http://" + YOUR_IP + ":11434/api/chat";
+    // 新增：风味迁移模型服务
+    public static final String FLAVOR_MODEL_URL = "http://" + YOUR_IP + ":8081/completion";
 }

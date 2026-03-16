@@ -1,5 +1,7 @@
 package com.example.nutricompass;
 
+import android.app.AlertDialog;
+import android.app.ProgressDialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.speech.tts.TextToSpeech;
@@ -14,6 +16,10 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.text.DecimalFormat;
 import java.util.ArrayList;
@@ -32,26 +38,300 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
     private ImageButton btnVoiceControl;
     private SpeechService speechService;
     private List<String> cookingStepsList = new ArrayList<>();
+    private Button btnFlavorMigration;  // 新增风味迁移按钮
+    private Recipe currentRecipe;       // 保存当前食谱
+    private FlavorMigrationClient flavorClient; // 风味迁移客户端
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_recipe_result);
-
+        // 初始化风味迁移客户端
+        flavorClient = new FlavorMigrationClient();
         BackButtonUtil.setupBackButton(this);
         userProfile = new UserProfile(this);
         initViews();
-        displayUserInfo();
-        checkTTSAvailability();
-        initSpeechService();
         Recipe recipe = (Recipe) getIntent().getSerializableExtra("recipe");
         if (recipe != null) {
             displayRecipeFromObject(recipe);
         } else {
             displayRecipeInfo();
         }
-
+        displayUserInfo();
+        checkTTSAvailability();
+        initSpeechService();
         setupButtonListeners();
+        // 新增：初始化风味迁移按钮
+        btnFlavorMigration = findViewById(R.id.btn_flavor_migration);
+        if (btnFlavorMigration != null) {
+            btnFlavorMigration.setOnClickListener(v -> {
+                showFlavorSelectionDialog();
+            });
+        }
+    }
+    /**
+     * 显示菜系选择对话框
+     */
+    private void showFlavorSelectionDialog() {
+        String[] cuisines = {
+                "川菜 (麻辣)", "粤菜 (鲜香)", "苏菜 (甜鲜)",
+                "鲁菜 (咸鲜)", "湘菜 (香辣)", "徽菜 (重味)",
+                "浙菜 (清淡)", "闽菜 (鲜香)"
+        };
+
+        new AlertDialog.Builder(this)
+                .setTitle("选择目标风味")
+                .setItems(cuisines, (dialog, which) -> {
+                    String selectedCuisine = cuisines[which];
+                    // 调用风味迁移生成新食谱
+                    callFlavorMigration(selectedCuisine);
+                })
+                .show();
+    }
+
+    /**
+     * 调用风味迁移生成新食谱
+     */
+    private void callFlavorMigration(String targetCuisine) {
+        // 添加空值检查
+        if (currentRecipe == null) {
+            Toast.makeText(this, "当前食谱为空，无法进行风味迁移", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        // 显示加载对话框
+        ProgressDialog progressDialog = new ProgressDialog(this);
+        progressDialog.setMessage("正在将食谱改良为 " + targetCuisine + "...");
+        progressDialog.setCancelable(false);
+        progressDialog.show();
+
+        // 将当前食谱转换为 JSON
+        JSONObject recipeJson = convertRecipeToJson(currentRecipe);
+
+        // 获取食材列表
+        List<String> ingredients = currentRecipe.getIngredients();
+
+        // 调用风味迁移模型
+        flavorClient.migrateRecipe(
+                recipeJson,
+                targetCuisine,
+                getUserHealthGoal(),
+                ingredients,
+                new FlavorMigrationClient.MigrationCallback() {
+                    @Override
+                    public void onSuccess(JSONObject migratedRecipe) {
+                        // 风味迁移成功，现在调用原大模型生成完整食谱
+                        callOriginalModelWithMigrated(migratedRecipe, targetCuisine, progressDialog);
+                    }
+
+                    @Override
+                    public void onError(String error) {
+                        runOnUiThread(() -> {
+                            progressDialog.dismiss();
+                            Toast.makeText(RecipeResultActivity.this,
+                                    "风味迁移失败: " + error, Toast.LENGTH_SHORT).show();
+                        });
+                    }
+                }
+        );
+    }
+
+    /**
+     * 调用原大模型生成完整食谱
+     */
+    private void callOriginalModelWithMigrated(JSONObject migratedRecipe, String cuisine, ProgressDialog progressDialog) {
+        // 更新进度对话框消息
+        runOnUiThread(() -> {
+            progressDialog.setMessage("大厨正在为您优化食谱...");
+        });
+
+        // 将迁移后的食谱转换为字符串格式
+        StringBuilder ingredientsStr = new StringBuilder();
+        try {
+            JSONArray ingredients = migratedRecipe.getJSONArray("ingredients");
+            for (int i = 0; i < ingredients.length(); i++) {
+                JSONObject ing = ingredients.getJSONObject(i);
+                if (ingredientsStr.length() > 0) ingredientsStr.append("，");
+                ingredientsStr.append(ing.getString("name"));
+                if (ing.has("amount") && !ing.getString("amount").equals("适量")) {
+                    ingredientsStr.append("(").append(ing.getString("amount")).append(")");
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "解析食材失败", e);
+        }
+
+        // 获取用户信息
+        UserProfile userProfile = new UserProfile(this);
+        String userGoal = userProfile.getGoal();
+        String userCondition = "";
+
+        // 调用 RecipeAnalyzer 的生成方法
+        RecipeAnalyzer analyzer = new RecipeAnalyzer(this);
+
+        // 需要给 RecipeAnalyzer 添加一个新方法
+        analyzer.generateFromMigration(
+                ingredientsStr.toString(),
+                userGoal,
+                userCondition,
+                migratedRecipe,  // 传入迁移后的食谱
+                cuisine,         // 传入菜系
+                new RecipeAnalyzer.GenerationCallback() {
+                    @Override
+                    public void onSuccess(Recipe finalRecipe) {
+                        runOnUiThread(() -> {
+                            progressDialog.dismiss();
+
+                            // 显示最终食谱
+                            displayNewRecipe(finalRecipe, cuisine);
+
+                            Toast.makeText(RecipeResultActivity.this,
+                                    "已生成 " + cuisine + " 风味的完整食谱！",
+                                    Toast.LENGTH_SHORT).show();
+                        });
+                    }
+
+                    @Override
+                    public void onError(String error) {
+                        runOnUiThread(() -> {
+                            progressDialog.dismiss();
+                            Toast.makeText(RecipeResultActivity.this,
+                                    "食谱优化失败: " + error, Toast.LENGTH_SHORT).show();
+                        });
+                    }
+                }
+        );
+    }
+
+    /**
+     * 显示新生成的食谱
+     */
+    private void displayNewRecipe(Recipe newRecipe, String cuisine) {
+        // 更新当前食谱为新生成的
+        this.currentRecipe = newRecipe;
+
+        // 刷新界面显示新食谱
+        displayRecipeFromObject(newRecipe);
+
+        // 显示提示
+        Toast.makeText(this,
+                "已生成 " + cuisine + " 风味的新食谱！",
+                Toast.LENGTH_SHORT).show();
+
+        // 可选：将新食谱保存到历史记录
+        saveRecipeToHistory(newRecipe);
+    }
+
+    /**
+     * 将 Recipe 转换为 JSON（给风味迁移模型用）
+     */
+    private JSONObject convertRecipeToJson(Recipe recipe) {
+        if (recipe == null) {
+            Log.e(TAG, "convertRecipeToJson: recipe is null");
+            return new JSONObject();
+        }
+        try {
+            JSONObject json = new JSONObject();
+            json.put("name", recipe.getName());
+            json.put("description", recipe.getDescription());
+
+            JSONArray ingredients = new JSONArray();
+            if (recipe.getIngredients() != null) {
+                for (String ing : recipe.getIngredients()) {
+                    JSONObject ingObj = new JSONObject();
+                    if (ing.contains("(") && ing.contains(")")) {
+                        String[] parts = ing.split("\\(");
+                        ingObj.put("name", parts[0].trim());
+                        ingObj.put("amount", parts[1].replace(")", "").trim());
+                    } else {
+                        ingObj.put("name", ing);
+                        ingObj.put("amount", "适量");
+                    }
+                    ingredients.put(ingObj);
+                }
+            }
+            json.put("ingredients", ingredients);
+
+            JSONArray steps = new JSONArray();
+            if (recipe.getCookingSteps() != null) {
+                for (String step : recipe.getCookingSteps()) {
+                    steps.put(step);
+                }
+            }
+            json.put("steps", steps);
+
+            JSONObject nutrition = new JSONObject();
+            if (recipe.getNutrition() != null) {
+                nutrition.put("calories", recipe.getNutrition().getCalories());
+                nutrition.put("protein", recipe.getNutrition().getProtein());
+                nutrition.put("carbs", recipe.getNutrition().getCarbs());
+                nutrition.put("fat", recipe.getNutrition().getFat());
+            }
+            json.put("nutrition", nutrition);
+
+            return json;
+        } catch (Exception e) {
+            Log.e(TAG, "转换Recipe失败", e);
+            return new JSONObject();
+        }
+    }
+
+    /**
+     * 将 JSON 转换为 Recipe
+     */
+    private Recipe convertJsonToRecipe(JSONObject json) {
+        Recipe recipe = new Recipe();
+        try {
+            recipe.setName(json.optString("name", "风味改良食谱"));
+            recipe.setDescription(json.optString("description", ""));
+
+            JSONArray ingredients = json.optJSONArray("ingredients");
+            if (ingredients != null) {
+                for (int i = 0; i < ingredients.length(); i++) {
+                    JSONObject ing = ingredients.getJSONObject(i);
+                    String name = ing.optString("name");
+                    String amount = ing.optString("amount", "适量");
+                    recipe.addIngredient(name + (amount != null ? " (" + amount + ")" : ""));
+                }
+            }
+
+            JSONArray steps = json.optJSONArray("steps");
+            if (steps != null) {
+                for (int i = 0; i < steps.length(); i++) {
+                    recipe.addCookingStep(steps.getString(i));
+                }
+            }
+
+            JSONObject nutrition = json.optJSONObject("nutrition");
+            if (nutrition != null) {
+                NutritionInfo ni = new NutritionInfo();
+                ni.setCalories(nutrition.optDouble("calories", 0));
+                ni.setProtein(nutrition.optDouble("protein", 0));
+                ni.setCarbs(nutrition.optDouble("carbs", 0));
+                ni.setFat(nutrition.optDouble("fat", 0));
+                recipe.setNutrition(ni);
+            }
+
+            // 设置其他字段
+            recipe.setReason("基于 " + json.optString("name", "原食谱") + " 的风味改良版本");
+            recipe.setPreparationTime("约20分钟");
+            recipe.setCookingTime("约25分钟");
+            recipe.setDifficulty(2);
+
+        } catch (Exception e) {
+            Log.e(TAG, "转换JSON失败", e);
+        }
+        return recipe;
+    }
+
+    private String getUserHealthGoal() {
+        return new UserProfile(this).getGoal();
+    }
+
+    /**
+     * 保存到历史记录
+     */
+    private void saveRecipeToHistory(Recipe recipe) {
+        new RecipeDatabase(this).addRecipe(recipe);
     }
 
     private void initViews() {
@@ -110,13 +390,32 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
 
         displayIngredients(ingredients);
         displayCookingSteps(steps);
+        // 创建 Recipe 对象并保存到 currentRecipe
+        Recipe recipe = new Recipe();
+        recipe.setTitle(recipeName);
+        recipe.setDescription(recipeDescription);
+        recipe.setReason(recipeReason);
+        recipe.setWeatherCondition(weatherInfo);
+        recipe.setPreparationTime(prepTime);
+        recipe.setCookingTime(cookTime);
 
+        if (ingredients != null) {
+            for (String s : ingredients) recipe.addIngredient(s);
+        }
+        if (steps != null) {
+            for (String s : steps) recipe.addCookingStep(s);
+        }
+
+        // 保存到 currentRecipe
+        this.currentRecipe = recipe;
         saveRecipeToHistory(recipeName, recipeDescription, recipeReason,
                 recipeNutrition, ingredients, steps, prepTime,
                 cookTime, difficulty, cookingTips);
     }
 
     private void displayRecipeFromObject(Recipe recipe) {
+        // 先保存到 currentRecipe
+        this.currentRecipe = recipe;
         tvRecipeName.setText(recipe.getTitle());
         tvRecipeDescription.setText(recipe.getDescription());
         tvRecipeReason.setText(recipe.getReason());
