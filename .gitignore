@@ -47,3 +47,6 @@ rag-service/models/
 **/tmp/
 .idea/shelf/
 .idea/assetWizardSettings.xml
+!llama.cpp/llama-b8356-bin-win-cpu-x64/
+!llama.cpp/llama-b8356-bin-win-cpu-x64/*.dll
+!llama.cpp/llama-b8356-bin-win-cpu-x64/*.exe
