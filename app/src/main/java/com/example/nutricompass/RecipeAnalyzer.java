@@ -22,7 +22,7 @@ public class RecipeAnalyzer {
     private Context context;
 
     // 本地 Ollama 地址
-    private static final String OLLAMA_URL = "http://10.133.130.187:11434/api/chat";
+    private static final String OLLAMA_URL = "http://10.138.79.96:11434/api/chat";
     private static final String CUSTOM_MODEL = "my_health_chef";
 
     // 新增：RAG 客户端
