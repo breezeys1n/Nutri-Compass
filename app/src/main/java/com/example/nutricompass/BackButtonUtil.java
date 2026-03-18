@@ -6,9 +6,6 @@ import android.widget.ImageView;
 
 public class BackButtonUtil {
 
-    /**
-     * 设置返回按钮点击事件
-     */
     public static void setupBackButton(Activity activity) {
         View backButton = activity.findViewById(R.id.back_button);
         if (backButton != null) {
@@ -19,10 +16,6 @@ public class BackButtonUtil {
             }
         }
     }
-
-    /**
-     * 设置返回按钮点击事件（带自定义点击监听）
-     */
     public static void setupBackButton(Activity activity, View.OnClickListener listener) {
         View backButton = activity.findViewById(R.id.back_button);
         if (backButton != null) {

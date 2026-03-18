@@ -1,5 +1,7 @@
+// FlavorMigrationClient.java
 package com.example.nutricompass;
 
+import android.content.Context;
 import android.util.Log;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -12,10 +14,16 @@ import java.util.Scanner;
 
 public class FlavorMigrationClient {
     private static final String TAG = "FlavorMigration";
+    private UnifiedConfig unifiedConfig;
 
     public interface MigrationCallback {
         void onSuccess(JSONObject migratedRecipe);
         void onError(String error);
+    }
+
+    // 构造函数，添加Context参数
+    public FlavorMigrationClient(Context context) {
+        this.unifiedConfig = UnifiedConfig.getInstance(context);
     }
 
     public void migrateRecipe(JSONObject originalRecipe,
@@ -26,7 +34,7 @@ public class FlavorMigrationClient {
 
         new Thread(() -> {
             try {
-                // 【核心修正点】：传入 originalRecipe 解决报错
+                // 构建Prompt
                 String prompt = buildFinetunedPrompt(originalRecipe, targetFlavor, ingredients);
 
                 JSONObject requestBody = new JSONObject();
@@ -41,7 +49,8 @@ public class FlavorMigrationClient {
 
                 Log.d(TAG, "Prompt发送内容: " + prompt);
 
-                URL url = new URL(Config.FLAVOR_MODEL_URL);
+                // 使用UnifiedConfig获取URL
+                URL url = new URL(unifiedConfig.getFlavorModelUrl());
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Content-Type", "application/json");
@@ -79,12 +88,12 @@ public class FlavorMigrationClient {
     private String buildFinetunedPrompt(JSONObject originalRecipe, String targetFlavor, List<String> ingredients) {
         String ingredientList = String.join("、", ingredients);
 
-        // 1. Instruction: 保持训练时的指令肌肉记忆
+        // 1. Instruction
         String instruction = "作为膳愈大厨，请严格根据以下食材制作一道地道的" + targetFlavor +
                 "，赋予一个既符合核心食材又具" + targetFlavor + "风味的菜名：" + ingredientList +
                 "。 输出要求：必须返回标准 JSON 格式，包含 title, cuisine, ingredients, steps, logic 字段。";
 
-        // 2. Input: 食材 + 菜系 + 原始食谱上下文
+        // 2. Input
         StringBuilder inputBuilder = new StringBuilder();
         inputBuilder.append("食材：").append(ingredientList)
                 .append(" | 目标菜系：").append(targetFlavor);
@@ -134,7 +143,9 @@ public class FlavorMigrationClient {
             if (start != -1 && end != -1 && end > start) {
                 return text.substring(start, end + 1);
             }
-        } catch (Exception e) { return null; }
+        } catch (Exception e) {
+            return null;
+        }
         return null;
     }
 }

@@ -1,5 +1,7 @@
+// OllamaApiClient.java
 package com.example.nutricompass;
 
+import android.content.Context;
 import android.util.Log;
 import okhttp3.*;
 import java.io.IOException;
@@ -7,9 +9,9 @@ import org.json.JSONObject;
 
 public class OllamaApiClient {
     private static final String TAG = "OllamaApiClient";
-    private static final String OLLAMA_BASE_URL = "http://10.138.79.96:11434";
     private static final String MODEL_NAME = "qwen2.5:7b";
     private final OkHttpClient client;
+    private UnifiedConfig unifiedConfig;
 
     public interface StreamResponseCallback {
         void onNewToken(String token);
@@ -17,7 +19,9 @@ public class OllamaApiClient {
         void onError(String error);
     }
 
-    public OllamaApiClient() {
+    // 修改构造函数，添加Context参数
+    public OllamaApiClient(Context context) {
+        this.unifiedConfig = UnifiedConfig.getInstance(context);
         this.client = new OkHttpClient.Builder()
                 .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
                 .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
@@ -29,10 +33,14 @@ public class OllamaApiClient {
             JSONObject requestBody = new JSONObject();
             requestBody.put("model", MODEL_NAME);
             requestBody.put("prompt", prompt);
-            requestBody.put("stream", true); // 关键：启用流式响应
+            requestBody.put("stream", true);
+
+            // 使用UnifiedConfig获取URL
+            String url = unifiedConfig.getOllamaGenerateUrl();
+            Log.d(TAG, "请求URL: " + url);
 
             Request request = new Request.Builder()
-                    .url(OLLAMA_BASE_URL + "/api/generate")
+                    .url(url)
                     .post(RequestBody.create(
                             requestBody.toString(),
                             MediaType.parse("application/json")
@@ -57,14 +65,12 @@ public class OllamaApiClient {
                     StringBuilder fullResponse = new StringBuilder();
                     try (ResponseBody responseBody = response.body()) {
                         if (responseBody != null) {
-                            // 逐行读取流式响应
                             java.io.BufferedReader reader = new java.io.BufferedReader(
                                     new java.io.InputStreamReader(responseBody.byteStream())
                             );
                             String line;
                             while ((line = reader.readLine()) != null) {
                                 if (line.trim().isEmpty()) continue;
-                                // 解析 Ollama 的流式 JSON 响应
                                 try {
                                     JSONObject json = new JSONObject(line);
                                     if (json.has("response")) {

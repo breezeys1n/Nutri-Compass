@@ -1,6 +1,7 @@
 // RecipeRetrievalClient.java
 package com.example.nutricompass;
 
+import android.content.Context;
 import android.util.Log;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -9,7 +10,6 @@ import com.google.gson.JsonParser;
 import com.google.gson.JsonElement;
 import org.json.JSONObject;
 import org.json.JSONArray;
-import org.json.JSONException;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -27,8 +27,10 @@ public class RecipeRetrievalClient {
 
     private final OkHttpClient client;
     private final Gson gson;
+    private UnifiedConfig unifiedConfig;
 
-    public RecipeRetrievalClient() {
+    public RecipeRetrievalClient(Context context) {
+        this.unifiedConfig = UnifiedConfig.getInstance(context);
         this.client = new OkHttpClient.Builder()
                 .connectTimeout(10, TimeUnit.SECONDS)
                 .readTimeout(20, TimeUnit.SECONDS)
@@ -71,8 +73,9 @@ public class RecipeRetrievalClient {
 
                 Log.d(TAG, "发送RAG请求: " + requestBody.toString());
 
+                // 使用UnifiedConfig获取URL
                 Request request = new Request.Builder()
-                        .url(Config.RAG_SERVICE_URL)
+                        .url(unifiedConfig.getRagServiceUrl())
                         .post(RequestBody.create(requestBody.toString(), JSON))
                         .build();
 
@@ -121,8 +124,9 @@ public class RecipeRetrievalClient {
 
                 Log.d(TAG, "发送原始RAG请求: " + requestBody.toString());
 
+                // 使用UnifiedConfig获取URL
                 Request request = new Request.Builder()
-                        .url(Config.RAG_SERVICE_URL)
+                        .url(unifiedConfig.getRagServiceUrl())
                         .post(RequestBody.create(requestBody.toString(), JSON))
                         .build();
 

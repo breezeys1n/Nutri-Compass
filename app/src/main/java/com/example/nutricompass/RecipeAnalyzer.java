@@ -20,18 +20,18 @@ import java.util.concurrent.TimeUnit;
 public class RecipeAnalyzer {
     private static final String TAG = "RecipeAnalyzer_Logic";
     private Context context;
+    private UnifiedConfig unifiedConfig;
 
-    // 本地 Ollama 地址
-    private static final String OLLAMA_URL = "http://10.138.79.96:11434/api/chat";
+    // 模型名称保持不变
     private static final String CUSTOM_MODEL = "my_health_chef";
 
-    // 新增：RAG 客户端
     private RecipeRetrievalClient retrievalClient;
 
     public RecipeAnalyzer(Context context) {
         this.context = context;
-        // 初始化 RAG 客户端
-        this.retrievalClient = new RecipeRetrievalClient();
+        this.unifiedConfig = UnifiedConfig.getInstance(context);
+        // 初始化 RAG 客户端时传入context
+        this.retrievalClient = new RecipeRetrievalClient(context);
     }
 
     public Recipe analyzeRecipe(String imageBase64, String userGoal, String userCondition) {
@@ -57,7 +57,7 @@ public class RecipeAnalyzer {
             String weatherRaw = WeatherProvider.fetchWeather(coords);
             String weatherInfo = parseWeatherToText(weatherRaw);
 
-            // ===== 新增：RAG 检索参考食谱 =====
+            // 2. RAG 检索参考食谱
             List<String> ingredientsList = parseIngredientsToList(detectedIngredients);
             StringBuilder ragReference = new StringBuilder();
 
@@ -117,7 +117,7 @@ public class RecipeAnalyzer {
 
                         ragReference.append("\n\n--- 参考食谱 ").append(idx + 1).append(" ---\n");
 
-                        // 食谱名称（注意：这里是name不是title）
+                        // 食谱名称
                         if (ref.has("name")) {
                             ragReference.append("菜名：").append(ref.optString("name")).append("\n");
                         }
@@ -151,12 +151,10 @@ public class RecipeAnalyzer {
                     ragReference.append("\n【以上是参考食谱，请借鉴其烹饪方法和搭配思路】\n");
                 }
             }
-            // ===== RAG 检索结束 =====
 
-            // 2. 构建输入数据
+            // 3. 构建输入数据
             String userPrompt;
             if (ragReference.length() > 0) {
-                // 如果有参考食谱，把完整的食谱内容传过去
                 userPrompt = String.format(
                         "【我的 BMI】: %s\n" +
                                 "【我的目标】：%s\n" +
@@ -168,7 +166,6 @@ public class RecipeAnalyzer {
                         bmiValue, userGoal, userCondition, weatherInfo, detectedIngredients, ragReference.toString()
                 );
             } else {
-                // 如果没有参考食谱，和原来一样
                 userPrompt = String.format(
                         "【我的 BMI】: %s\n" +
                                 "【我的目标】：%s\n" +
@@ -180,7 +177,7 @@ public class RecipeAnalyzer {
                 );
             }
 
-            // 3. 构建请求体（完全不变）
+            // 4. 构建请求体
             JSONObject root = new JSONObject();
             root.put("model", CUSTOM_MODEL);
             root.put("stream", false);
@@ -195,8 +192,8 @@ public class RecipeAnalyzer {
             Log.d(TAG, "正在请求 Ollama (模型: " + CUSTOM_MODEL + ")...");
             Log.d(TAG, "最终 Prompt: " + userPrompt);
 
-            // 4. 网络请求（完全不变）
-            URL url = new URL(OLLAMA_URL);
+            // 5. 使用UnifiedConfig获取URL进行网络请求
+            URL url = new URL(unifiedConfig.getOllamaChatUrl());
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Content-Type", "application/json");
@@ -225,7 +222,7 @@ public class RecipeAnalyzer {
         return createErrorRecipe("无法连接到电脑 AI 大厨，请检查小羊驼是否开启");
     }
 
-    // 新增：解析食材列表
+    // 解析食材列表
     private List<String> parseIngredientsToList(String detectedIngredients) {
         List<String> ingredients = new ArrayList<>();
         if (detectedIngredients == null || detectedIngredients.isEmpty()) {
@@ -241,7 +238,7 @@ public class RecipeAnalyzer {
         return ingredients;
     }
 
-    // 以下方法完全不变
+    // 解析天气
     private String parseWeatherToText(String raw) {
         if (raw == null || !raw.contains("{")) return "天气适宜";
         try {
@@ -255,6 +252,7 @@ public class RecipeAnalyzer {
         return "天气查询失败";
     }
 
+    // 解析JSON食谱
     private Recipe parseRecipeFromJson(String jsonStr, String cond, String weather) throws Exception {
         String jsonContent = extractJsonContent(jsonStr);
         if (jsonContent == null) {
@@ -305,16 +303,10 @@ public class RecipeAnalyzer {
 
         JSONObject nut = json.optJSONObject("nutrition_info");
         if (nut != null) {
-            Log.d(TAG, "=== 原始nutrition_info ===");
-            Log.d(TAG, nut.toString());
-
             double calories = parseNutritionValue(nut.optString("calories", "0"));
             double protein = parseNutritionValue(nut.optString("protein", "0"));
             double carbs = parseNutritionValue(nut.optString("carbs", "0"));
             double fat = parseNutritionValue(nut.optString("fat", "0"));
-
-            Log.d(TAG, String.format("解析后的营养值: 热量=%.1f, 蛋白质=%.1f, 碳水=%.1f, 脂肪=%.1f",
-                    calories, protein, carbs, fat));
 
             NutritionInfo nutrition = new NutritionInfo(calories, protein, carbs, fat);
             recipe.setNutrition(nutrition);
@@ -376,6 +368,7 @@ public class RecipeAnalyzer {
         r.setDescription(msg);
         return r;
     }
+
     // 添加回调接口
     public interface GenerationCallback {
         void onSuccess(Recipe recipe);
@@ -413,7 +406,7 @@ public class RecipeAnalyzer {
                     }
                 }
 
-                // 构建提示词：告诉大模型这是用户选择的改良版
+                // 构建提示词
                 String userPrompt = String.format(
                         "【用户已选择风味改良】\n" +
                                 "用户希望将食谱改良为 %s 风味，以下是风味迁移模型生成的基础版本。\n\n" +
@@ -453,7 +446,8 @@ public class RecipeAnalyzer {
                 messages.put(userMessage);
                 requestBody.put("messages", messages);
 
-                URL url = new URL(OLLAMA_URL);
+                // 使用UnifiedConfig获取URL
+                URL url = new URL(unifiedConfig.getOllamaChatUrl());
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Content-Type", "application/json");

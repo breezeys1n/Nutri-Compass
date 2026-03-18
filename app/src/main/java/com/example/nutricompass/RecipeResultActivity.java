@@ -46,21 +46,26 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_recipe_result);
-        // 初始化风味迁移客户端
-        flavorClient = new FlavorMigrationClient();
+
+        // 初始化风味迁移客户端 - 传入this
+        flavorClient = new FlavorMigrationClient(this);
+
         BackButtonUtil.setupBackButton(this);
         userProfile = new UserProfile(this);
         initViews();
+
         Recipe recipe = (Recipe) getIntent().getSerializableExtra("recipe");
         if (recipe != null) {
             displayRecipeFromObject(recipe);
         } else {
             displayRecipeInfo();
         }
+
         displayUserInfo();
         checkTTSAvailability();
         initSpeechService();
         setupButtonListeners();
+
         // 新增：初始化风味迁移按钮
         btnFlavorMigration = findViewById(R.id.btn_flavor_migration);
         if (btnFlavorMigration != null) {
@@ -69,6 +74,7 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
             });
         }
     }
+
     /**
      * 显示菜系选择对话框
      */
@@ -98,6 +104,7 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
             Toast.makeText(this, "当前食谱为空，无法进行风味迁移", Toast.LENGTH_SHORT).show();
             return;
         }
+
         // 显示加载对话框
         ProgressDialog progressDialog = new ProgressDialog(this);
         progressDialog.setMessage("正在将食谱改良为 " + targetCuisine + "...");
@@ -168,7 +175,6 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
         // 调用 RecipeAnalyzer 的生成方法
         RecipeAnalyzer analyzer = new RecipeAnalyzer(this);
 
-        // 需要给 RecipeAnalyzer 添加一个新方法
         analyzer.generateFromMigration(
                 ingredientsStr.toString(),
                 userGoal,
@@ -353,10 +359,12 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
             speechService.setVoiceButton(btnVoiceControl);
         }
     }
+
     private void initSpeechService() {
         speechService = SpeechService.getInstance(this);
         speechService.setCallback(this);
     }
+
     private void displayUserInfo() {
         StringBuilder userInfo = new StringBuilder("为您定制 | 目标: ");
         userInfo.append(userProfile.getGoal());
@@ -390,6 +398,7 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
 
         displayIngredients(ingredients);
         displayCookingSteps(steps);
+
         // 创建 Recipe 对象并保存到 currentRecipe
         Recipe recipe = new Recipe();
         recipe.setTitle(recipeName);
@@ -408,6 +417,7 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
 
         // 保存到 currentRecipe
         this.currentRecipe = recipe;
+
         saveRecipeToHistory(recipeName, recipeDescription, recipeReason,
                 recipeNutrition, ingredients, steps, prepTime,
                 cookTime, difficulty, cookingTips);
@@ -416,6 +426,7 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
     private void displayRecipeFromObject(Recipe recipe) {
         // 先保存到 currentRecipe
         this.currentRecipe = recipe;
+
         tvRecipeName.setText(recipe.getTitle());
         tvRecipeDescription.setText(recipe.getDescription());
         tvRecipeReason.setText(recipe.getReason());
@@ -525,14 +536,11 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
     }
 
     private void setupButtonListeners() {
-        // 修改：点击跳转至语音助手界面，并传递当前食谱上下文
-        // 在 RecipeResultActivity.java 中找到 btnNextStep 的设置逻辑
         btnNextStep.setOnClickListener(v -> {
             Log.d(TAG, "开始点击跳转按钮...");
 
             try {
                 // 1. 停止语音，但不要 shutdown！
-                // 如果调用了 shutdown()，会导致跳转后的页面无法再次获取 TTS 实例
                 if (speechService != null) {
                     speechService.stopSpeaking();
                 }
@@ -578,6 +586,7 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
             });
         }
     }
+
     @Override
     public void onSpeechStart(int stepIndex) {
         runOnUiThread(() -> {
@@ -585,6 +594,7 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
             Toast.makeText(this, "开始朗读第" + (stepIndex + 1) + "步", Toast.LENGTH_SHORT).show();
         });
     }
+
     @Override
     public void onSpeechDone(int stepIndex) {
         runOnUiThread(() -> {
@@ -648,6 +658,7 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
             }
         }
     }
+
     private void checkTTSAvailability() {
         // 使用数组或原子引用来绕过匿名内部类对变量 final 的限制
         final TextToSpeech[] ttsHolder = new TextToSpeech[1];
@@ -687,13 +698,13 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
             }
         });
     }
+
     @Override
     protected void onDestroy() {
         super.onDestroy();
         // 停止语音并释放资源
         if (speechService != null) {
             speechService.stopSpeaking();
-
         }
     }
 

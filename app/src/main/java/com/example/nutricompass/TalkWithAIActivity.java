@@ -40,13 +40,17 @@ public class TalkWithAIActivity extends AppCompatActivity implements VoskRecogni
     private LinkedList<String> chatHistory = new LinkedList<>();
     private static final int MAX_HISTORY_ROUNDS = 5;
 
+    // TalkWithAIActivity.java - 修改onCreate方法中的初始化部分
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_talk_with_ai);
+
         // 1. 获取数据
         recipeName = getIntent().getStringExtra("recipe_name");
         recipeSteps = getIntent().getStringArrayListExtra("recipe_steps");
+
         // 2. 初始化 UI
         BackButtonUtil.setupBackButton(this);
         tvStatus = findViewById(R.id.tv_status);
@@ -59,18 +63,21 @@ public class TalkWithAIActivity extends AppCompatActivity implements VoskRecogni
             startActivity(intent);
             finish();
         });
-        // 3. 服务初始化
-        ollamaClient = new OllamaApiClient();
+
+        // 3. 服务初始化 - 传入context
+        ollamaClient = new OllamaApiClient(this);  // 关键修改：传入this
         voskHelper = new VoskRecognitionHelper(this, this);
         speechService = SpeechService.getInstance(this);
         speechService.setCallback(this);
+
         try {
             //提示音
             toneGenerator = new ToneGenerator(AudioManager.STREAM_ALARM, 100);
         } catch (Exception e) {
             Log.e(TAG, "ToneGenerator 异常");
         }
-        // 4. 加载模型（加载成功后会通过 onStatus 触发欢迎词）
+
+        // 4. 加载模型
         tvStatus.setText("状态: 大厨正在穿围裙...");
         voskHelper.initModel();
     }

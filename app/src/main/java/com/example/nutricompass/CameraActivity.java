@@ -33,11 +33,8 @@ public class CameraActivity extends AppCompatActivity {
     private static final int REQUEST_PICK_IMAGE = 2;
     private static final int REQUEST_CAMERA_PERMISSION = 100;
     private static final String TAG = "CameraActivity_ShanYu";
-
-    // ===== 新增：调试模式开关 =====
-    private static final boolean DEBUG_MODE = true;  // true = 使用默认图片，false = 正常拍照
-    private static final String DEFAULT_IMAGE_ASSET = "default_food.jpg"; // 默认图片放在 assets 文件夹
-
+    private static final boolean DEBUG_MODE = true;
+    private static final String DEFAULT_IMAGE_ASSET = "default_food.jpg";
     private ImageView imageView;
     private TextView tvStatus;
     private Button btnTakePhoto, btnConfirmPhoto, btnPickPhoto;
@@ -77,7 +74,6 @@ public class CameraActivity extends AppCompatActivity {
         }
     }
 
-    // ===== 新增：从 assets 加载默认图片 =====
     private void loadDefaultImage() {
         try {
             InputStream is = getAssets().open(DEFAULT_IMAGE_ASSET);
