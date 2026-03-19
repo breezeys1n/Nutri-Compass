@@ -83,7 +83,7 @@ public class FlavorMigrationClient {
     }
 
     /**
-     * 构建 Prompt：严格遵循训练格式 + 原始食谱上下文注入
+     * 构建 Prompt
      */
     private String buildFinetunedPrompt(JSONObject originalRecipe, String targetFlavor, List<String> ingredients) {
         String ingredientList = String.join("、", ingredients);
@@ -93,16 +93,12 @@ public class FlavorMigrationClient {
                 "，赋予一个既符合核心食材又具" + targetFlavor + "风味的菜名：" + ingredientList +
                 "。 输出要求：必须返回标准 JSON 格式，包含 title, cuisine, ingredients, steps, logic 字段。";
 
-        // 2. Input
+        // 2. Input - 移除原始食谱参考
         StringBuilder inputBuilder = new StringBuilder();
         inputBuilder.append("食材：").append(ingredientList)
                 .append(" | 目标菜系：").append(targetFlavor);
 
-        // 将原食谱信息放在 input 最后作为背景参考
-        inputBuilder.append(" | 原始食谱参考：{")
-                .append("菜名:").append(originalRecipe.optString("name", "无"))
-                .append(", 原步骤:").append(originalRecipe.optJSONArray("steps"))
-                .append("}");
+        // 注意：这里不再添加原始食谱信息
 
         return instruction + "\n" + "input: " + inputBuilder.toString() + "\n" + "output: ";
     }

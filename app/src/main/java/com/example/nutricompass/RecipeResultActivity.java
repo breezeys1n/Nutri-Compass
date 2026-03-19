@@ -432,27 +432,34 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
         tvRecipeReason.setText(recipe.getReason());
         tvWeatherInfo.setText("🌤️ " + (recipe.getWeatherCondition() != null ? recipe.getWeatherCondition() : ""));
 
+        // ==== 修复营养信息显示 ====
         if (recipe.getNutrition() != null && recipe.getNutrition().getCalories() > 0) {
             NutritionInfo n = recipe.getNutrition();
-            // 严谨显示所有数值
-            tvRecipeNutrition.setText(String.format(Locale.CHINA, "热量: %.0f大卡 | 蛋白质: %.1fg | 碳水: %.1fg | 脂肪: %.1fg",
+            tvRecipeNutrition.setText(String.format(Locale.CHINA,
+                    "热量: %.0f大卡 | 蛋白质: %.1fg | 碳水: %.1fg | 脂肪: %.1fg",
                     n.getCalories(), n.getProtein(), n.getCarbs(), n.getFat()));
+        } else if (recipe.getCalories() > 0) {
+            // 兼容旧的存储方式（直接使用 recipe 的 calories 字段）
+            tvRecipeNutrition.setText(String.format(Locale.CHINA,
+                    "热量: %d大卡 | 蛋白质: %.1fg | 碳水: %.1fg | 脂肪: %.1fg",
+                    recipe.getCalories(), recipe.getProtein(), recipe.getCarbs(), recipe.getFat()));
         } else {
             tvRecipeNutrition.setText(recipe.getBriefNutrition());
         }
+        // =========================
 
         tvPrepTimeValue.setText(recipe.getPreparationTime());
         tvCookTimeValue.setText(recipe.getCookingTime());
         tvDifficultyValue.setText(convertDifficultyToString(recipe.getDifficulty()));
 
-        if (recipe.getIngredients() != null) displayIngredients(recipe.getIngredients().toArray(new String[0]));
+        if (recipe.getIngredients() != null)
+            displayIngredients(recipe.getIngredients().toArray(new String[0]));
 
         if (recipe.getCookingSteps() != null) {
             cookingStepsList.clear();
             cookingStepsList.addAll(recipe.getCookingSteps());
             displayCookingSteps(recipe.getCookingSteps().toArray(new String[0]));
 
-            // 设置到语音服务
             if (speechService != null) {
                 speechService.setCookingSteps(cookingStepsList);
             }

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- ========== 基础颜色（兼容系统） ========== -->
     <color name="purple_200">#FFBB86FC</color>
     <color name="purple_500">#FF6200EE</color>
     <color name="purple_700">#FF3700B3</color>
@@ -8,7 +9,7 @@
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
 
-    <!-- 你的自定义颜色 -->
+    <!-- ========== 旧版颜色（保持兼容） ========== -->
     <color name="primary_green">#4CAF50</color>
     <color name="light_green">#8BC34A</color>
     <color name="accent_orange">#FF9800</color>
@@ -17,4 +18,30 @@
     <color name="text_secondary">#757575</color>
     <color name="primary_blue">#2196F3</color>
     <color name="step_highlight">#E8F5E9</color>
+
+    <!-- ========== 新版颜色（薄荷绿系列） ========== -->
+    <color name="primary_mint">#00BFA5</color>
+    <color name="primary_mint_light">#E0F2F1</color>
+    <color name="primary_mint_dark">#00897B</color>
+
+    <!-- ========== 新版辅助色（珊瑚橙系列） ========== -->
+    <color name="secondary_coral">#FF8A65</color>
+    <color name="secondary_coral_light">#FFE0B2</color>
+
+    <!-- ========== 新版灰色层次（从深到浅） ========== -->
+    <color name="gray_900">#1E1E1E</color>
+    <color name="gray_800">#2C2C2C</color>
+    <color name="gray_700">#3C3C3C</color>
+    <color name="gray_600">#5E5E5E</color>
+    <color name="gray_500">#7E7E7E</color>
+    <color name="gray_400">#BDBDBD</color>
+    <color name="gray_300">#E0E0E0</color>
+    <color name="gray_200">#F5F5F5</color>
+    <color name="gray_100">#FAFAFA</color>
+
+    <!-- ========== 功能色 ========== -->
+    <color name="success">#4CAF50</color>
+    <color name="warning">#FF9800</color>
+    <color name="error">#F44336</color>
+    <color name="info">#2196F3</color>
 </resources>

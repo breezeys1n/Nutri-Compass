@@ -3,8 +3,17 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/background_with_overlay">
+    android:background="@color/gray_100">
 
+    <!-- 顶部渐变条 - 固定不滚动 -->
+    <View
+        android:id="@+id/header_gradient"
+        android:layout_width="match_parent"
+        android:layout_height="140dp"
+        android:background="@drawable/gradient_header"
+        android:layout_alignParentTop="true" />
+
+    <!-- 返回按钮 - 固定在左上角 -->
     <include
         android:id="@+id/back_button"
         layout="@layout/layout_back_button"
@@ -13,106 +22,138 @@
         android:layout_alignParentStart="true"
         android:layout_alignParentTop="true" />
 
-    <LinearLayout
-        android:id="@+id/header"
-        android:layout_width="match_parent"
+    <!-- 标题 - 固定在青色框内 -->
+    <TextView
+        android:id="@+id/tv_title"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:background="@android:color/transparent"
-        android:padding="16dp"
-        android:elevation="0dp"
-        android:layout_below="@id/back_button">
+        android:text="随心诉求"
+        android:textSize="28sp"
+        android:textStyle="bold"
+        android:textColor="@color/white"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="40dp" />
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="随心诉求"
-            android:textSize="26sp"
-            android:textStyle="bold"
-            android:textColor="#4CAF50"
-            android:gravity="center" />
-    </LinearLayout>
+    <!-- 提示文字 - 放在青色框内，标题下方 -->
+    <TextView
+        android:id="@+id/tv_hint"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="请告诉 AI 您此时的状态以及诉求"
+        android:textSize="14sp"
+        android:textColor="@color/white"
+        android:alpha="0.9"
+        android:layout_centerHorizontal="true"
+        android:layout_below="@id/tv_title"
+        android:layout_marginTop="8dp" />
 
-    <LinearLayout
+    <!-- 可滚动内容区域 - 从青色框底部开始 -->
+    <ScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_below="@id/header"
-        android:orientation="vertical"
-        android:gravity="center_horizontal"
-        android:padding="20dp">
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="请告诉 AI 您此时的状态以及诉求"
-            android:textSize="16sp"
-            android:gravity="center"
-            android:layout_marginTop="10dp"
-            android:layout_marginBottom="20dp"
-            android:padding="10dp"
-            android:background="@android:color/transparent"/>
-
-        <EditText
-            android:id="@+id/et_status_input"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:background="@drawable/shape_white_card"
-            android:gravity="top"
-            android:hint="点击麦克风语音输入..."
-            android:padding="15dp"
-            android:textColor="#333333"
-            android:textSize="18sp"
-            android:importantForAutofill="no"
-            android:inputType="textMultiLine" />
-
-        <TextView
-            android:id="@+id/tv_vosk_partial"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textColor="#4CAF50"
-            android:textSize="14sp"
-            android:layout_marginTop="5dp"
-            android:gravity="center" />
+        android:layout_below="@id/header_gradient"
+        android:fillViewport="true"
+        android:paddingHorizontal="16dp">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:gravity="center"
-            android:layout_marginTop="20dp"
-            android:layout_marginBottom="20dp">
+            android:paddingTop="16dp"
+            android:paddingBottom="20dp">
 
-            <com.google.android.material.floatingactionbutton.FloatingActionButton
-                android:id="@+id/fab_mic"
-                android:layout_width="wrap_content"
+            <!-- 合并后的输入和麦克风卡片 -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:src="@android:drawable/ic_btn_speak_now"
-                app:backgroundTint="#4CAF50"
-                app:tint="#FFFFFF"
-                app:elevation="6dp"
-                android:clickable="true"
-                android:focusable="true" />
+                app:cardCornerRadius="16dp"
+                app:cardElevation="2dp"
+                android:layout_marginBottom="16dp"
+                app:cardBackgroundColor="@color/white">
 
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:orientation="vertical"
+                    android:padding="20dp">
+
+                    <!-- 输入框 -->
+                    <EditText
+                        android:id="@+id/et_status_input"
+                        android:layout_width="330dp"
+                        android:layout_height="315dp"
+                        android:layout_marginBottom="16dp"
+                        android:background="@null"
+                        android:gravity="top"
+                        android:hint="在此输入文字..."
+                        android:importantForAutofill="no"
+                        android:inputType="textMultiLine"
+                        android:textColor="@color/gray_800"
+                        android:textSize="16sp" />
+
+                    <!-- 分割线 -->
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:background="@color/gray_200"
+                        android:layout_marginBottom="16dp" />
+
+                    <!-- 麦克风区域 -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingVertical="4dp">
+
+                        <com.google.android.material.floatingactionbutton.FloatingActionButton
+                            android:id="@+id/fab_mic"
+                            android:layout_width="wrap_content"
+                            android:layout_height="70dp"
+                            android:layout_marginEnd="12dp"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:src="@android:drawable/ic_btn_speak_now"
+                            app:backgroundTint="@color/primary_mint"
+                            app:elevation="2dp"
+                            app:fabSize="mini"
+                            app:tint="@color/white" />
+
+                        <TextView
+                            android:id="@+id/tv_mic_hint"
+                            android:layout_width="223dp"
+                            android:layout_height="wrap_content"
+                            android:text="点击开始语音输入"
+                            android:textColor="@color/gray_600"
+                            android:textSize="14sp" />
+                    </LinearLayout>
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <!-- 部分识别结果 -->
             <TextView
-                android:id="@+id/tv_mic_hint"
-                android:layout_width="wrap_content"
+                android:id="@+id/tv_vosk_partial"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="点击开始录入"
-                android:textColor="#666666" />
+                android:textColor="@color/primary_mint"
+                android:textSize="14sp"
+                android:layout_marginBottom="16dp"
+                android:gravity="center"
+                android:minHeight="30dp" />
+
+            <!-- 下一步按钮 - 只改了这里，从 Button 改为 MaterialButton -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_next_camera"
+                android:layout_width="match_parent"
+                android:layout_height="67dp"
+                android:layout_marginBottom="10dp"
+                android:backgroundTint="@color/primary_mint"
+                android:elevation="2dp"
+                android:text="✅ 描述好了，去拍摄食材"
+                android:textColor="@color/white"
+                app:cornerRadius="26dp" />
+
         </LinearLayout>
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btn_next_camera"
-            android:layout_width="match_parent"
-            android:layout_height="54dp"
-            android:text="✅ 描述好了，去拍摄食材"
-            android:backgroundTint="#4CAF50"
-            android:textColor="#FFFFFF"
-            android:layout_marginBottom="10dp"
-            app:cornerRadius="27dp" />
-
-    </LinearLayout>
+    </ScrollView>
 
 </RelativeLayout>

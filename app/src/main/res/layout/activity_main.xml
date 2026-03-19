@@ -4,42 +4,101 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/background_with_overlay">
+    android:background="@color/gray_100">
 
-    <!-- 顶部应用标题 -->
+    <!-- 顶部渐变装饰条 - 统一高度和弧度 -->
+    <View
+        android:id="@+id/header_gradient"
+        android:layout_width="match_parent"
+        android:layout_height="180dp"
+        android:background="@drawable/gradient_header"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- 应用标题 -->
     <TextView
         android:id="@+id/tv_app_title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="膳愈"
-        android:textSize="28sp"
+        android:textSize="40sp"
         android:textStyle="bold"
-        android:textColor="@color/primary_green"
+        android:textColor="@color/white"
+        android:letterSpacing="0.05"
+        android:elevation="2dp"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="80dp" />
+        android:layout_marginTop="60dp" />
 
-    <!-- 核心功能按钮 -->
-    <Button
-        android:id="@+id/btn_generate_recipe"
+    <!-- 副标题 -->
+    <TextView
+        android:id="@+id/tv_subtitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="生成今日食谱"
-        android:textSize="18sp"
+        android:text="你的AI营养助手"
+        android:textSize="16sp"
         android:textColor="@color/white"
-        android:backgroundTint="@color/accent_orange"
-        android:paddingStart="40dp"
-        android:paddingEnd="40dp"
-        android:paddingTop="16dp"
-        android:paddingBottom="16dp"
-        android:elevation="8dp"
-        android:stateListAnimator="@null"
-        app:cornerRadius="24dp"
+        android:alpha="0.9"
+        android:letterSpacing="0.02"
         app:layout_constraintTop_toBottomOf="@id/tv_app_title"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="60dp" />
+        android:layout_marginTop="8dp" />
+
+    <!-- 主功能卡片 - 与青色框底部对齐 -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/card_main"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:cardCornerRadius="24dp"
+        app:cardElevation="8dp"
+        app:cardBackgroundColor="@color/white"
+        android:layout_marginHorizontal="20dp"
+        app:layout_constraintTop_toBottomOf="@id/tv_subtitle"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginTop="100dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="24dp"
+            android:gravity="center">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="开始今日配餐"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:textColor="@color/gray_800"
+                android:layout_marginBottom="8dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="拍摄食材照片，AI为你定制专属食谱"
+                android:textSize="14sp"
+                android:textColor="@color/gray_600"
+                android:layout_marginBottom="24dp"
+                android:gravity="center" />
+
+            <Button
+                android:id="@+id/btn_generate_recipe"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:text="生成今日食谱"
+                android:textSize="16sp"
+                android:textColor="@color/white"
+                android:backgroundTint="@color/primary_mint"
+                app:cornerRadius="28dp"
+                android:elevation="2dp"
+                android:stateListAnimator="@null" />
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
 
     <!-- 底部导航栏 -->
     <com.google.android.material.bottomnavigation.BottomNavigationView
@@ -52,9 +111,6 @@
         app:itemTextColor="@drawable/bottom_nav_selector"
         app:labelVisibilityMode="labeled"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:itemHorizontalTranslationEnabled="false"
         android:elevation="8dp" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
