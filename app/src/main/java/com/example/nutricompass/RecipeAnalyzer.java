@@ -23,11 +23,13 @@ import java.util.concurrent.TimeUnit;
 public class RecipeAnalyzer {
     private static final String TAG = "RecipeAnalyzer_Logic";
     private Context context;
+    private UnifiedConfig unifiedConfig;
 
-    // 本地 Ollama 地址
-    private static final String OLLAMA_URL = "http://10.128.141.95:11434/api/chat";
+    // 模型名称保持不变
     private static final String CUSTOM_MODEL = "my_health_chef";
+
     private KnowledgeGraphAPI knowledgeGraphApi;
+
     public interface GenerationCallback {
         void onSuccess(Recipe recipe);
         void onError(String error);
@@ -35,16 +37,19 @@ public class RecipeAnalyzer {
 
     // 带 Context 的构造器
     public RecipeAnalyzer(Context context) {
-        this.context = context.getApplicationContext(); // 使用 Application Context 避免内存泄漏
+        this.context = context.getApplicationContext();
+        this.unifiedConfig = UnifiedConfig.getInstance(context); // 初始化 UnifiedConfig
         this.knowledgeGraphApi = new KnowledgeGraphAPI();
         loadKnowledgeGraphAsync();
     }
+
     private void loadKnowledgeGraphAsync() {
         new Thread(() -> {
             knowledgeGraphApi.loadFromAssets(context);
             Log.d(TAG, "知识图谱数据加载完成");
         }).start();
     }
+
     public Recipe analyzeRecipe(String imageBase64, String userGoal, String userCondition) {
         try {
             DoubaoImageRecognizer doubao = new DoubaoImageRecognizer();
@@ -68,7 +73,7 @@ public class RecipeAnalyzer {
             String weatherRaw = WeatherProvider.fetchWeather(coords);
             String weatherInfo = parseWeatherToText(weatherRaw);
 
-            // ===== 新增：RAG 检索参考食谱 =====
+            // 2. RAG 检索参考食谱（知识图谱）
             List<String> ingredientsList = parseIngredientsToList(detectedIngredients);
             StringBuilder ragReference = new StringBuilder();
 
@@ -78,7 +83,7 @@ public class RecipeAnalyzer {
                 if (!recipes.isEmpty()) {
                     ragReference.append("\n\n【参考食谱（供你借鉴烹饪方法和搭配思路）】");
 
-                    // 最多取前2个食谱（可根据需要调整）
+                    // 最多取前2个食谱
                     int count = Math.min(2, recipes.size());
                     for (int idx = 0; idx < count; idx++) {
                         KnowledgeGraphAPI.Recipe recipe = recipes.get(idx);
@@ -88,7 +93,7 @@ public class RecipeAnalyzer {
                         // 菜名
                         ragReference.append("菜名：").append(recipe.getName()).append("\n");
 
-                        // 食材列表（目前只包含名称，无用量）
+                        // 食材列表
                         List<String> ingredientNames = recipe.getIngredients();
                         if (!ingredientNames.isEmpty()) {
                             ragReference.append("食材：\n");
@@ -109,11 +114,10 @@ public class RecipeAnalyzer {
                     ragReference.append("\n【以上是参考食谱，请借鉴其烹饪方法和搭配思路】\n");
                 }
             }
-            // ===== RAG 检索结束 =====
-            // 2. 构建输入数据
+
+            // 3. 构建输入数据
             String userPrompt;
             if (ragReference.length() > 0) {
-                // 如果有参考食谱，把完整的食谱内容传过去
                 userPrompt = String.format(
                         "【我的 BMI】: %s\n" +
                                 "【我的目标】：%s\n" +
@@ -125,7 +129,6 @@ public class RecipeAnalyzer {
                         bmiValue, userGoal, userCondition, weatherInfo, detectedIngredients, ragReference.toString()
                 );
             } else {
-                // 如果没有参考食谱，和原来一样
                 userPrompt = String.format(
                         "【我的 BMI】: %s\n" +
                                 "【我的目标】：%s\n" +
@@ -137,7 +140,7 @@ public class RecipeAnalyzer {
                 );
             }
 
-            // 3. 构建请求体（完全不变）
+            // 4. 构建请求体
             JSONObject root = new JSONObject();
             root.put("model", CUSTOM_MODEL);
             root.put("stream", false);
@@ -152,8 +155,8 @@ public class RecipeAnalyzer {
             Log.d(TAG, "正在请求 Ollama (模型: " + CUSTOM_MODEL + ")...");
             Log.d(TAG, "最终 Prompt: " + userPrompt);
 
-            // 4. 网络请求（完全不变）
-            URL url = new URL(OLLAMA_URL);
+            // 5. 使用 UnifiedConfig 获取 URL 进行网络请求
+            URL url = new URL(unifiedConfig.getOllamaChatUrl());
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Content-Type", "application/json");
@@ -182,7 +185,7 @@ public class RecipeAnalyzer {
         return createErrorRecipe("无法连接到电脑 AI 大厨，请检查小羊驼是否开启");
     }
 
-    // 新增：解析食材列表
+    // 解析食材列表
     private List<String> parseIngredientsToList(String detectedIngredients) {
         List<String> ingredients = new ArrayList<>();
         if (detectedIngredients == null || detectedIngredients.isEmpty()) {
@@ -198,7 +201,7 @@ public class RecipeAnalyzer {
         return ingredients;
     }
 
-    // 以下方法完全不变
+    // 解析天气
     private String parseWeatherToText(String raw) {
         if (raw == null || !raw.contains("{")) return "天气适宜";
         try {
@@ -332,5 +335,112 @@ public class RecipeAnalyzer {
         r.setName("AI 大厨休息中");
         r.setDescription(msg);
         return r;
+    }
+    public void generateFromMigration(String ingredients,
+                                      String userGoal,
+                                      String userCondition,
+                                      JSONObject migratedRecipe,
+                                      String cuisine,
+                                      GenerationCallback callback) {
+        new Thread(() -> {
+            try {
+                UserProfile userProfile = new UserProfile(context);
+                double bmiValue = userProfile.calculateBMI();
+
+                // 获取天气
+                String coords = LocationHelper.getCoordinates(context);
+                String weatherRaw = WeatherProvider.fetchWeather(coords);
+                String weatherInfo = parseWeatherToText(weatherRaw);
+
+                // 从迁移食谱中提取信息
+                String recipeName = migratedRecipe.optString("name", "风味改良食谱");
+                String recipeDesc = migratedRecipe.optString("description", "");
+
+                JSONArray steps = migratedRecipe.optJSONArray("steps");
+                StringBuilder stepsStr = new StringBuilder();
+                if (steps != null) {
+                    for (int i = 0; i < steps.length(); i++) {
+                        stepsStr.append(i+1).append(". ").append(steps.getString(i)).append("\n");
+                    }
+                }
+
+                // 构建提示词
+                String userPrompt = String.format(
+                        "【用户已选择风味改良】\n" +
+                                "用户希望将食谱改良为 %s 风味，以下是风味迁移模型生成的基础版本。\n\n" +
+                                "【用户信息】\n" +
+                                "BMI: %.1f\n" +
+                                "健康目标: %s\n" +
+                                "身体状态: %s\n" +
+                                "当前天气: %s\n\n" +
+                                "【基础改良食谱】\n" +
+                                "菜名: %s\n" +
+                                "描述: %s\n" +
+                                "食材: %s\n" +
+                                "步骤:\n%s\n\n" +
+                                "【任务】\n" +
+                                "1. 基于这个基础食谱，生成完整的烹饪指导\n" +
+                                "2. 确保符合用户的健康目标 (%s)\n" +
+                                "3. 添加详细的烹饪技巧和时间建议\n" +
+                                "4. 保持 %s 的风味特色\n" +
+                                "5. 输出格式必须是JSON，包含：name, description, ingredients, cooking_steps, nutrition_info, preparation_time, cooking_time, difficulty_level, dietary_tips",
+                        cuisine,
+                        bmiValue, userGoal, userCondition, weatherInfo,
+                        recipeName, recipeDesc, ingredients, stepsStr.toString(),
+                        userGoal, cuisine
+                );
+
+                Log.d(TAG, "生成提示词: " + userPrompt);
+
+                // 调用 Ollama
+                JSONObject requestBody = new JSONObject();
+                requestBody.put("model", CUSTOM_MODEL);
+                requestBody.put("stream", false);
+
+                JSONArray messages = new JSONArray();
+                JSONObject userMessage = new JSONObject();
+                userMessage.put("role", "user");
+                userMessage.put("content", userPrompt);
+                messages.put(userMessage);
+                requestBody.put("messages", messages);
+
+                // 使用UnifiedConfig获取URL
+                URL url = new URL(unifiedConfig.getOllamaChatUrl());
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setDoOutput(true);
+                conn.setConnectTimeout(10000);
+                conn.setReadTimeout(60000);
+
+                try (OutputStream os = conn.getOutputStream()) {
+                    os.write(requestBody.toString().getBytes(StandardCharsets.UTF_8));
+                }
+
+                if (conn.getResponseCode() == 200) {
+                    Scanner s = new Scanner(conn.getInputStream(), "UTF-8").useDelimiter("\\A");
+                    String response = s.hasNext() ? s.next() : "";
+                    JSONObject respJson = new JSONObject(response);
+                    String aiContent = respJson.getJSONObject("message").getString("content");
+
+                    Log.d(TAG, "Ollama响应: " + aiContent);
+
+                    Recipe finalRecipe = parseRecipeFromJson(aiContent, userCondition, weatherInfo);
+
+                    // 如果没有获取到菜名，使用基础食谱的菜名
+                    if (finalRecipe.getName() == null || finalRecipe.getName().isEmpty()) {
+                        finalRecipe.setName(recipeName);
+                    }
+
+                    callback.onSuccess(finalRecipe);
+                } else {
+                    callback.onError("HTTP错误: " + conn.getResponseCode());
+                }
+
+            } catch (Exception e) {
+                Log.e(TAG, "生成失败", e);
+                callback.onError(e.getMessage());
+            }
+        }).start();
     }
 }
