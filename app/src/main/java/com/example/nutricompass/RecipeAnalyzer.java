@@ -27,7 +27,24 @@ public class RecipeAnalyzer {
     // 本地 Ollama 地址
     private static final String OLLAMA_URL = "http://10.128.141.95:11434/api/chat";
     private static final String CUSTOM_MODEL = "my_health_chef";
+    private KnowledgeGraphAPI knowledgeGraphApi;
+    public interface GenerationCallback {
+        void onSuccess(Recipe recipe);
+        void onError(String error);
+    }
 
+    // 带 Context 的构造器
+    public RecipeAnalyzer(Context context) {
+        this.context = context.getApplicationContext(); // 使用 Application Context 避免内存泄漏
+        this.knowledgeGraphApi = new KnowledgeGraphAPI();
+        loadKnowledgeGraphAsync();
+    }
+    private void loadKnowledgeGraphAsync() {
+        new Thread(() -> {
+            knowledgeGraphApi.loadFromAssets(context);
+            Log.d(TAG, "知识图谱数据加载完成");
+        }).start();
+    }
     public Recipe analyzeRecipe(String imageBase64, String userGoal, String userCondition) {
         try {
             DoubaoImageRecognizer doubao = new DoubaoImageRecognizer();
@@ -54,10 +71,8 @@ public class RecipeAnalyzer {
             // ===== 新增：RAG 检索参考食谱 =====
             List<String> ingredientsList = parseIngredientsToList(detectedIngredients);
             StringBuilder ragReference = new StringBuilder();
-            KnowledgeGraphAPI knowledgeGraphApi=new KnowledgeGraphAPI();
-            knowledgeGraphApi.loadFromAssets(context);
+
             if (!ingredientsList.isEmpty()) {
-                // 假设 knowledgeGraphApi 是已初始化的 KnowledgeGraphAPI 实例，且数据已加载
                 List<KnowledgeGraphAPI.Recipe> recipes = knowledgeGraphApi.searchRecipes(ingredientsList);
 
                 if (!recipes.isEmpty()) {
