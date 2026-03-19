@@ -3,6 +3,9 @@ package com.example.nutricompass;
 
 import android.content.Context;
 import android.util.Log;
+
+import com.example.nutricompass.knowledgegraph.KnowledgeGraphAPI;
+
 import org.json.JSONArray;
 import org.json.JSONObject;
 import java.io.OutputStream;
@@ -60,91 +63,40 @@ public class RecipeAnalyzer {
             // ===== 新增：RAG 检索参考食谱 =====
             List<String> ingredientsList = parseIngredientsToList(detectedIngredients);
             StringBuilder ragReference = new StringBuilder();
-
+            KnowledgeGraphAPI knowledgeGraphApi=new KnowledgeGraphAPI();
+            knowledgeGraphApi.loadFromAssets(context);
             if (!ingredientsList.isEmpty()) {
-                final List<JSONObject>[] referenceRecipes = new List[]{new ArrayList<>()};
-                final boolean[] retrievalDone = {false};
-                CountDownLatch latch = new CountDownLatch(1);
+                // 假设 knowledgeGraphApi 是已初始化的 KnowledgeGraphAPI 实例，且数据已加载
+                List<KnowledgeGraphAPI.Recipe> recipes = knowledgeGraphApi.searchRecipes(ingredientsList);
 
-                retrievalClient.searchRawRecipes(ingredientsList, userGoal, "", 5,
-                        new RecipeRetrievalClient.RawJsonCallback() {
-                            @Override
-                            public void onSuccess(List<JSONObject> recipes) {
-                                try {
-                                    // 按质量分数排序筛选前2个
-                                    List<JSONObject> filtered = new ArrayList<>();
-
-                                    Collections.sort(recipes, new Comparator<JSONObject>() {
-                                        @Override
-                                        public int compare(JSONObject a, JSONObject b) {
-                                            double scoreA = a.optDouble("quality_score", 0);
-                                            double scoreB = b.optDouble("quality_score", 0);
-                                            return Double.compare(scoreB, scoreA);
-                                        }
-                                    });
-
-                                    // 只取前2个最相关的食谱
-                                    for (int i = 0; i < Math.min(2, recipes.size()); i++) {
-                                        filtered.add(recipes.get(i));
-                                    }
-
-                                    referenceRecipes[0] = filtered;
-                                } catch (Exception e) {
-                                    Log.e(TAG, "处理食谱列表失败: " + e.getMessage());
-                                }
-                                retrievalDone[0] = true;
-                                latch.countDown();
-                                Log.d(TAG, "找到 " + recipes.size() + " 个参考食谱，选用前 " + referenceRecipes[0].size() + " 个");
-                            }
-
-                            @Override
-                            public void onError(String error) {
-                                Log.e(TAG, "RAG检索失败: " + error);
-                                retrievalDone[0] = true;
-                                latch.countDown();
-                            }
-                        }
-                );
-
-                latch.await(1500, TimeUnit.MILLISECONDS);
-
-                // 如果有结果，添加完整食谱内容
-                if (retrievalDone[0] && !referenceRecipes[0].isEmpty()) {
+                if (!recipes.isEmpty()) {
                     ragReference.append("\n\n【参考食谱（供你借鉴烹饪方法和搭配思路）】");
 
-                    for (int idx = 0; idx < referenceRecipes[0].size(); idx++) {
-                        JSONObject ref = referenceRecipes[0].get(idx);
+                    // 最多取前2个食谱（可根据需要调整）
+                    int count = Math.min(2, recipes.size());
+                    for (int idx = 0; idx < count; idx++) {
+                        KnowledgeGraphAPI.Recipe recipe = recipes.get(idx);
 
                         ragReference.append("\n\n--- 参考食谱 ").append(idx + 1).append(" ---\n");
 
-                        // 食谱名称（注意：这里是name不是title）
-                        if (ref.has("name")) {
-                            ragReference.append("菜名：").append(ref.optString("name")).append("\n");
-                        }
+                        // 菜名
+                        ragReference.append("菜名：").append(recipe.getName()).append("\n");
 
-                        // 菜系
-                        if (ref.has("cuisine")) {
-                            ragReference.append("菜系：").append(ref.optString("cuisine")).append("\n");
-                        }
-
-                        // 食材列表
-                        if (ref.has("ingredients")) {
+                        // 食材列表（目前只包含名称，无用量）
+                        List<String> ingredientNames = recipe.getIngredients();
+                        if (!ingredientNames.isEmpty()) {
                             ragReference.append("食材：\n");
-                            JSONArray ingredients = ref.getJSONArray("ingredients");
-                            for (int i = 0; i < ingredients.length(); i++) {
-                                JSONObject ing = ingredients.getJSONObject(i);
-                                String name = ing.optString("name", "");
-                                String amount = ing.optString("amount", "适量");
-                                ragReference.append("  - ").append(name).append(" ").append(amount).append("\n");
+                            for (String name : ingredientNames) {
+                                ragReference.append("  - ").append(name).append("\n");
                             }
                         }
 
-                        // 烹饪步骤
-                        if (ref.has("steps")) {
+                        // 步骤
+                        List<String> steps = recipe.getSteps();
+                        if (steps != null && !steps.isEmpty()) {
                             ragReference.append("步骤：\n");
-                            JSONArray steps = ref.getJSONArray("steps");
-                            for (int i = 0; i < steps.length(); i++) {
-                                ragReference.append("  ").append(i + 1).append(". ").append(steps.getString(i)).append("\n");
+                            for (int i = 0; i < steps.size(); i++) {
+                                ragReference.append("  ").append(i + 1).append(". ").append(steps.get(i)).append("\n");
                             }
                         }
                     }
@@ -152,7 +104,6 @@ public class RecipeAnalyzer {
                 }
             }
             // ===== RAG 检索结束 =====
-
             // 2. 构建输入数据
             String userPrompt;
             if (ragReference.length() > 0) {

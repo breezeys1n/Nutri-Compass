@@ -1,0 +1,379 @@
+package com.example.nutricompass.knowledgegraph;
+import java.util.*;
+public class IngredientClassifier {
+    // 关键词 -> 类别 映射表（按关键词长度降序排序）
+    private final List<Map.Entry<String, String>> sortedRules;
+
+    public IngredientClassifier() {
+        Map<String, String> rawRules = buildRuleMap();
+        // 按关键词长度降序排序
+        List<Map.Entry<String, String>> entries = new ArrayList<>(rawRules.entrySet());
+        entries.sort((e1, e2) -> Integer.compare(e2.getKey().length(), e1.getKey().length()));
+        this.sortedRules = entries;
+    }
+
+    private Map<String, String> buildRuleMap() {
+        Map<String, String> map = new HashMap<>();
+        // 肉类
+        map.put("五花肉", "肉类");
+        map.put("里脊肉", "肉类");
+        map.put("猪瘦肉", "肉类");
+        map.put("猪里脊", "肉类");
+        map.put("梅花肉", "肉类");
+        map.put("猪五花", "肉类");
+        map.put("三层肉", "肉类");
+        map.put("带皮五花肉", "肉类");
+        map.put("猪排骨", "肉类");
+        map.put("肋排", "肉类");
+        map.put("小排", "肉类");
+        map.put("仔排", "肉类");
+        map.put("腔骨", "肉类");
+        map.put("脊骨", "肉类");
+        map.put("猪蹄", "肉类");
+        map.put("猪脚", "肉类");
+        map.put("蹄膀", "肉类");
+        map.put("肘子", "肉类");
+        map.put("牛腩", "肉类");
+        map.put("牛里脊", "肉类");
+        map.put("牛腱子", "肉类");
+        map.put("肥牛", "肉类");
+        map.put("牛尾", "肉类");
+        map.put("牛筋", "肉类");
+        map.put("羊肉卷", "肉类");
+        map.put("羊排", "肉类");
+        map.put("羊腿", "肉类");
+        map.put("羊蝎子", "肉类");
+        map.put("鸡腿", "肉类");
+        map.put("鸡胸肉", "肉类");
+        map.put("鸡翅", "肉类");
+        map.put("鸡爪", "肉类");
+        map.put("三黄鸡", "肉类");
+        map.put("童子鸡", "肉类");
+        map.put("鸭腿", "肉类");
+        map.put("鸭翅", "肉类");
+        map.put("鸭爪", "肉类");
+        map.put("鸭血", "肉类");
+        map.put("火腿", "肉类");
+        map.put("火腿肠", "肉类");
+        map.put("午餐肉", "肉类");
+        map.put("方腿", "肉类");
+        map.put("香肠", "肉类");
+        map.put("腊肠", "肉类");
+        map.put("风干肠", "肉类");
+        map.put("红肠", "肉类");
+        map.put("腊肉", "肉类");
+        map.put("咸肉", "肉类");
+        map.put("腊排骨", "肉类");
+        map.put("培根", "肉类");
+
+        // 内脏
+        map.put("猪肝", "内脏");
+        map.put("猪心", "内脏");
+        map.put("猪腰", "内脏");
+        map.put("猪肚", "内脏");
+        map.put("猪大肠", "内脏");
+        map.put("猪肺", "内脏");
+        map.put("猪舌", "内脏");
+        map.put("牛肝", "内脏");
+        map.put("牛心", "内脏");
+        map.put("牛腰", "内脏");
+        map.put("牛百叶", "内脏");
+        map.put("毛肚", "内脏");
+        map.put("牛肚", "内脏");
+        map.put("牛舌", "内脏");
+        map.put("鸡胗", "内脏");
+        map.put("鸡心", "内脏");
+        map.put("鸡肝", "内脏");
+        map.put("鸭胗", "内脏");
+        map.put("鸭肠", "内脏");
+        map.put("鸭肝", "内脏");
+        map.put("鸭心", "内脏");
+        map.put("肥肠","内脏");
+        // 水产
+        map.put("草鱼", "水产");
+        map.put("鲤鱼", "水产");
+        map.put("鲫鱼", "水产");
+        map.put("鲈鱼", "水产");
+        map.put("鳜鱼", "水产");
+        map.put("黑鱼", "水产");
+        map.put("带鱼", "水产");
+        map.put("黄鱼", "水产");
+        map.put("鲳鱼", "水产");
+        map.put("三文鱼", "水产");
+        map.put("鳕鱼", "水产");
+        map.put("巴沙鱼", "水产");
+        map.put("龙利鱼", "水产");
+        map.put("基围虾", "水产");
+        map.put("大虾", "水产");
+        map.put("虾仁", "水产");
+        map.put("海虾", "水产");
+        map.put("河虾", "水产");
+        map.put("小龙虾", "水产");
+        map.put("螃蟹", "水产");
+        map.put("大闸蟹", "水产");
+        map.put("梭子蟹", "水产");
+        map.put("蛤蜊", "水产");
+        map.put("花蛤", "水产");
+        map.put("扇贝", "水产");
+        map.put("生蚝", "水产");
+        map.put("牡蛎", "水产");
+        map.put("海蛎", "水产");
+        map.put("蛏子", "水产");
+        map.put("文蛤", "水产");
+        map.put("青口", "水产");
+        map.put("鱿鱼", "水产");
+        map.put("墨鱼", "水产");
+        map.put("章鱼", "水产");
+        map.put("八爪鱼", "水产");
+        map.put("海参", "水产");
+        map.put("鲍鱼", "水产");
+
+        // 蛋类
+        map.put("鸭蛋", "蛋类");
+        map.put("鹅蛋", "蛋类");
+        map.put("鹌鹑蛋", "蛋类");
+        map.put("松花蛋", "蛋类");
+        map.put("皮蛋", "蛋类");
+        map.put("鸡蛋", "蛋类");
+
+        // 蔬菜（仅列部分）
+        map.put("白菜", "蔬菜");
+        map.put("大白菜", "蔬菜");
+        map.put("小白菜", "蔬菜");
+        map.put("娃娃菜", "蔬菜");
+        map.put("奶白菜", "蔬菜");
+        map.put("青菜", "蔬菜");
+        map.put("油菜", "蔬菜");
+        map.put("上海青", "蔬菜");
+        map.put("小油菜", "蔬菜");
+        map.put("菜心", "蔬菜");
+        map.put("芥蓝", "蔬菜");
+        map.put("菠菜", "蔬菜");
+        map.put("生菜", "蔬菜");
+        map.put("油麦菜", "蔬菜");
+        map.put("空心菜", "蔬菜");
+        map.put("韭菜", "蔬菜");
+        map.put("韭黄", "蔬菜");
+        map.put("韭苔", "蔬菜");
+        map.put("芹菜", "蔬菜");
+        map.put("西芹", "蔬菜");
+        map.put("香芹", "蔬菜");
+        map.put("包菜", "蔬菜");
+        map.put("圆白菜", "蔬菜");
+        map.put("卷心菜", "蔬菜");
+        map.put("甘蓝", "蔬菜");
+        map.put("茼蒿", "蔬菜");
+        map.put("苋菜", "蔬菜");
+        map.put("芥菜", "蔬菜");
+        map.put("雪菜", "蔬菜");
+        map.put("雪里蕻", "蔬菜");
+        map.put("香菜", "蔬菜");
+        map.put("土豆", "蔬菜");
+        map.put("马铃薯", "蔬菜");
+        map.put("洋芋", "蔬菜");
+        map.put("红薯", "蔬菜");
+        map.put("地瓜", "蔬菜");
+        map.put("山药", "蔬菜");
+        map.put("淮山", "蔬菜");
+        map.put("芋头", "蔬菜");
+        map.put("毛芋", "蔬菜");
+        map.put("白萝卜", "蔬菜");
+        map.put("胡萝卜", "蔬菜");
+        map.put("青萝卜", "蔬菜");
+        map.put("水萝卜", "蔬菜");
+        map.put("莲藕", "蔬菜");
+        map.put("藕", "蔬菜");
+        map.put("洋葱", "蔬菜");
+        map.put("圆葱", "蔬菜");
+        map.put("紫洋葱", "蔬菜");
+        map.put("白洋葱", "蔬菜");
+        map.put("大蒜", "蔬菜");
+        map.put("蒜头", "蔬菜");
+        map.put("莴笋", "蔬菜");
+        map.put("竹笋", "蔬菜");
+        map.put("春笋", "蔬菜");
+        map.put("冬笋", "蔬菜");
+        map.put("芦笋", "蔬菜");
+        map.put("黄瓜", "蔬菜");
+        map.put("青瓜", "蔬菜");
+        map.put("冬瓜", "蔬菜");
+        map.put("南瓜", "蔬菜");
+        map.put("金瓜", "蔬菜");
+        map.put("苦瓜", "蔬菜");
+        map.put("丝瓜", "蔬菜");
+        map.put("西葫芦", "蔬菜");
+        map.put("云南小瓜", "蔬菜");
+        map.put("番茄", "蔬菜");
+        map.put("西红柿", "蔬菜");
+        map.put("茄子", "蔬菜");
+        map.put("青椒", "蔬菜");
+        map.put("红椒", "蔬菜");
+        map.put("甜椒", "蔬菜");
+        map.put("彩椒", "蔬菜");
+        map.put("尖椒", "蔬菜");
+        map.put("杭椒", "蔬菜");
+        map.put("螺丝椒", "蔬菜");
+        map.put("小米辣", "蔬菜");
+        map.put("秋葵", "蔬菜");
+        map.put("豆角", "蔬菜");
+        map.put("四季豆", "蔬菜");
+        map.put("豇豆", "蔬菜");
+        map.put("刀豆", "蔬菜");
+        map.put("豌豆", "蔬菜");
+        map.put("荷兰豆", "蔬菜");
+        map.put("毛豆", "蔬菜");
+        map.put("蚕豆", "蔬菜");
+        map.put("豆芽", "蔬菜");
+        map.put("绿豆芽", "蔬菜");
+        map.put("黄豆芽", "蔬菜");
+
+        // 豆制品
+        map.put("豆腐", "豆制品");
+        map.put("嫩豆腐", "豆制品");
+        map.put("老豆腐", "豆制品");
+        map.put("南豆腐", "豆制品");
+        map.put("北豆腐", "豆制品");
+        map.put("豆干", "豆制品");
+        map.put("香干", "豆制品");
+        map.put("五香干", "豆制品");
+        map.put("腐竹", "豆制品");
+        map.put("豆皮", "豆制品");
+        map.put("千张", "豆制品");
+        map.put("百叶", "豆制品");
+        map.put("豆腐皮", "豆制品");
+        map.put("油豆腐", "豆制品");
+        map.put("豆腐泡", "豆制品");
+        map.put("炸豆腐", "豆制品");
+        map.put("豆腐丝", "豆制品");
+        map.put("干丝", "豆制品");
+        map.put("素鸡", "豆制品");
+
+        // 菌菇
+        map.put("香菇", "菌菇");
+        map.put("花菇", "菌菇");
+        map.put("冬菇", "菌菇");
+        map.put("蘑菇", "菌菇");
+        map.put("口蘑", "菌菇");
+        map.put("白蘑菇", "菌菇");
+        map.put("金针菇", "菌菇");
+        map.put("平菇", "菌菇");
+        map.put("凤尾菇", "菌菇");
+        map.put("杏鲍菇", "菌菇");
+        map.put("茶树菇", "菌菇");
+        map.put("草菇", "菌菇");
+        map.put("木耳", "菌菇");
+        map.put("黑木耳", "菌菇");
+        map.put("银耳", "菌菇");
+
+        // 水果
+        map.put("菠萝", "水果");
+        map.put("凤梨", "水果");
+        map.put("柠檬", "水果");
+        map.put("苹果", "水果");
+        map.put("橙子", "水果");
+        map.put("香橙", "水果");
+        map.put("芒果", "水果");
+        map.put("木瓜", "水果");
+
+        // 坚果干货
+        map.put("花生", "坚果");
+        map.put("花生米", "坚果");
+        map.put("芝麻", "坚果");
+        map.put("白芝麻", "坚果");
+        map.put("黑芝麻", "坚果");
+        map.put("核桃", "坚果");
+        map.put("松子", "坚果");
+        map.put("红枣", "干货");
+        map.put("大枣", "干货");
+        map.put("枸杞", "干货");
+        map.put("枸杞子", "干货");
+        map.put("莲子", "干货");
+        map.put("百合", "干货");
+
+        // 主食
+        map.put("大米", "主食");
+        map.put("米饭", "主食");
+        map.put("粘米粉", "主食");
+        map.put("糯米", "主食");
+        map.put("江米", "主食");
+        map.put("面粉", "主食");
+        map.put("中筋面粉", "主食");
+        map.put("高筋面粉", "主食");
+        map.put("低筋面粉", "主食");
+        map.put("面条", "主食");
+        map.put("挂面", "主食");
+        map.put("拉面", "主食");
+        map.put("刀削面", "主食");
+        map.put("意面", "主食");
+        map.put("米粉", "主食");
+        map.put("河粉", "主食");
+        map.put("粿条", "主食");
+        map.put("年糕", "主食");
+        map.put("糍粑", "主食");
+        map.put("粉丝", "主食");
+        map.put("粉条", "主食");
+        map.put("红薯粉", "主食");
+
+        // 调味品（如需使用）
+        map.put("酱油", "调味品");
+        map.put("生抽", "调味品");
+        map.put("老抽", "调味品");
+        map.put("蒸鱼豉油", "调味品");
+        map.put("味极鲜", "调味品");
+        map.put("醋", "调味品");
+        map.put("香醋", "调味品");
+        map.put("陈醋", "调味品");
+        map.put("米醋", "调味品");
+        map.put("白醋", "调味品");
+        map.put("料酒", "调味品");
+        map.put("黄酒", "调味品");
+        map.put("米酒", "调味品");
+        map.put("糖", "调味品");
+        map.put("白糖", "调味品");
+        map.put("冰糖", "调味品");
+        map.put("红糖", "调味品");
+        map.put("盐", "调味品");
+        map.put("味精", "调味品");
+        map.put("鸡精", "调味品");
+        map.put("豆瓣酱", "调味品");
+        map.put("郫县豆瓣", "调味品");
+        map.put("甜面酱", "调味品");
+        map.put("蚝油", "调味品");
+        map.put("番茄酱", "调味品");
+        map.put("辣椒酱", "调味品");
+        map.put("豆豉", "调味品");
+        map.put("腐乳", "调味品");
+        map.put("红腐乳", "调味品");
+        map.put("白腐乳", "调味品");
+        map.put("芝麻油", "调味品");
+        map.put("香油", "调味品");
+        map.put("花椒", "调味品");
+        map.put("藤椒", "调味品");
+        map.put("麻椒", "调味品");
+        map.put("八角", "调味品");
+        map.put("桂皮", "调味品");
+        map.put("香叶", "调味品");
+        map.put("孜然", "调味品");
+        map.put("小茴香", "调味品");
+
+        // 最后添加通用词（长度短，会最后匹配）
+        map.put("猪", "肉类");
+        map.put("牛", "肉类");
+        map.put("羊", "肉类");
+        map.put("鸡", "肉类");
+        map.put("鸭", "肉类");
+        return map;
+    }
+
+    /**
+     * 根据食材名称返回所属类别，若无匹配返回“其他”
+     */
+    public String classify(String ingredientName) {
+        for (Map.Entry<String, String> rule : sortedRules) {
+            if (ingredientName.contains(rule.getKey())) {
+                return rule.getValue();
+            }
+        }
+        return "其他";
+    }
+}

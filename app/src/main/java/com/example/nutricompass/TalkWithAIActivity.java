@@ -11,6 +11,9 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
+
+import com.example.nutricompass.knowledgegraph.KnowledgeGraphAPI;
+
 import java.util.LinkedList;
 import java.util.List;
 import java.util.regex.Pattern;
