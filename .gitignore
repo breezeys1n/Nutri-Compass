@@ -1,4 +1,3 @@
-# Android 原有的忽略规则（保持不变）
 *.iml
 .gradle
 /local.properties
@@ -14,37 +13,40 @@
 .externalNativeBuild
 .cxx
 local.properties
-
-# ===== 新增：Python RAG 服务忽略规则 =====
-
-# 虚拟环境
 rag-service/venv/
 rag-service/env/
 rag-service/ENV/
 rag-service/.venv/
-
-# Python 缓存文件
 rag-service/__pycache__/
 rag-service/*.pyc
 rag-service/*.pyo
 rag-service/*.pyd
 rag-service/scripts/__pycache__/
 rag-service/scripts/*.pyc
-
-# 向量数据库（可以重建，不用上传）
 rag-service/recipe_vector_db/
 rag-service/chromadb/
-
-# 临时文件
 rag-service/.pytest_cache/
 rag-service/.coverage
 rag-service/htmlcov/
 rag-service/.mypy_cache/
 rag-service/.ruff_cache/
-
-# 日志文件
 rag-service/*.log
-
-# 开发环境配置
 rag-service/.env
 rag-service/.venv
+**/build-llama/
+**/bin/
+**/obj/
+llama.cpp/build/
+llama.cpp/out/
+*.gguf
+*.bin
+rag-service/models/
+.cxx/
+**/intermediates/
+**/generated/
+**/tmp/
+.idea/shelf/
+.idea/assetWizardSettings.xml
+!llama.cpp/llama-b8356-bin-win-cpu-x64/
+!llama.cpp/llama-b8356-bin-win-cpu-x64/*.dll
+!llama.cpp/llama-b8356-bin-win-cpu-x64/*.exe

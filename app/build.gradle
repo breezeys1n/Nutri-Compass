@@ -10,7 +10,7 @@ android {
 
     defaultConfig {
         applicationId "com.example.nutricompass"
-        minSdk 26
+        minSdk 32
         targetSdk 36
         versionCode 1
         versionName "1.0"
@@ -75,6 +75,7 @@ dependencies {
     testImplementation libs.junit
     androidTestImplementation libs.ext.junit
     androidTestImplementation libs.espresso.core
+    implementation(project(":lib"))
     // 添加网络相关依赖
     implementation 'com.squareup.okhttp3:okhttp:4.9.3'
 

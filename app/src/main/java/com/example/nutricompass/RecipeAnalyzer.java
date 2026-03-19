@@ -28,15 +28,6 @@ public class RecipeAnalyzer {
     private static final String OLLAMA_URL = "http://10.128.141.95:11434/api/chat";
     private static final String CUSTOM_MODEL = "my_health_chef";
 
-    // 新增：RAG 客户端
-    private RecipeRetrievalClient retrievalClient;
-
-    public RecipeAnalyzer(Context context) {
-        this.context = context;
-        // 初始化 RAG 客户端
-        this.retrievalClient = new RecipeRetrievalClient();
-    }
-
     public Recipe analyzeRecipe(String imageBase64, String userGoal, String userCondition) {
         try {
             DoubaoImageRecognizer doubao = new DoubaoImageRecognizer();

@@ -1,10 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/background_with_overlay">
+    android:background="@color/gray_100">
 
-    <!-- 返回按钮 -->
+    <!-- 顶部渐变条 - 唯一固定的元素 -->
+    <View
+        android:id="@+id/header_gradient"
+        android:layout_width="match_parent"
+        android:layout_height="120dp"
+        android:background="@drawable/gradient_header"
+        android:layout_alignParentTop="true" />
+
+    <!-- 返回按钮 - 固定在左上角（在青色框内） -->
     <include
         android:id="@+id/back_button"
         layout="@layout/layout_back_button"
@@ -13,65 +22,236 @@
         android:layout_alignParentStart="true"
         android:layout_alignParentTop="true" />
 
-    <LinearLayout
+    <!-- 标题 - 固定在青色框内 -->
+    <TextView
+        android:id="@+id/tv_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="拍摄食材"
+        android:textSize="28sp"
+        android:textStyle="bold"
+        android:textColor="@color/white"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="40dp" />
+
+    <!-- 可滚动内容区域 - 从青色框底部开始 -->
+    <ScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:orientation="vertical"
-        android:gravity="center_horizontal"
-        android:padding="20dp"
-        android:layout_below="@id/back_button">
-
-        <TextView
-            android:id="@+id/tv_status"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="准备获取食材照片..."
-            android:textSize="16sp"
-            android:gravity="center"
-            android:layout_marginBottom="20dp"
-            android:padding="10dp"
-            android:background="#F5F5F5"/>
-
-        <ImageView
-            android:id="@+id/imageView"
-            android:layout_width="300dp"
-            android:layout_height="300dp"
-            android:scaleType="centerCrop"
-            android:background="#EEEEEE"
-            android:layout_marginBottom="20dp"
-            android:contentDescription="食材照片预览" />
+        android:layout_below="@id/header_gradient"
+        android:fillViewport="true"
+        android:paddingHorizontal="20dp">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center"
-            android:layout_marginBottom="10dp">
+            android:orientation="vertical"
+            android:gravity="center_horizontal"
+            android:paddingTop="16dp"
+            android:paddingBottom="20dp">
 
-            <Button
-                android:id="@+id/btn_take_photo"
-                android:layout_width="0dp"
-                android:layout_weight="1"
+            <!-- 用户目标卡片 - 现在在滚动区域内 -->
+            <androidx.cardview.widget.CardView
+                android:id="@+id/card_user_goal"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="5dp"
-                android:text="📸 拍摄食材" />
+                android:layout_marginBottom="16dp"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="2dp"
+                app:cardBackgroundColor="@color/white">
 
-            <Button
-                android:id="@+id/btn_pick_photo"
-                android:layout_width="0dp"
-                android:layout_weight="1"
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:padding="16dp"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="🎯"
+                        android:textSize="20sp"
+                        android:layout_marginEnd="8dp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="当前目标："
+                        android:textSize="14sp"
+                        android:textColor="@color/gray_600" />
+
+                    <TextView
+                        android:id="@+id/tv_user_goal"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="减脂"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/primary_mint"
+                        android:layout_marginStart="4dp" />
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <!-- 状态/进度卡片容器 -->
+            <FrameLayout
+                android:id="@+id/container_status"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="5dp"
-                android:backgroundTint="#2196F3"
-                android:text="🖼️ 相册选择" />
+                android:layout_marginBottom="16dp">
+
+                <!-- 状态卡片 -->
+                <androidx.cardview.widget.CardView
+                    android:id="@+id/card_status"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="2dp"
+                    app:cardBackgroundColor="@color/white"
+                    android:visibility="visible">
+
+                    <TextView
+                        android:id="@+id/tv_status"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="准备获取食材照片..."
+                        android:textSize="14sp"
+                        android:textColor="@color/gray_600"
+                        android:gravity="center"
+                        android:padding="16dp" />
+                </androidx.cardview.widget.CardView>
+
+                <!-- 进度卡片 -->
+                <androidx.cardview.widget.CardView
+                    android:id="@+id/card_progress"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="4dp"
+                    app:cardBackgroundColor="@color/white"
+                    android:visibility="gone">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="20dp"
+                        android:gravity="center">
+
+                        <TextView
+                            android:id="@+id/tv_progress_icon"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="🔄"
+                            android:textSize="40sp"
+                            android:layout_marginBottom="12dp" />
+
+                        <TextView
+                            android:id="@+id/tv_progress_title"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="正在识别食材"
+                            android:textSize="16sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/gray_800"
+                            android:layout_marginBottom="4dp" />
+
+                        <TextView
+                            android:id="@+id/tv_progress_description"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="AI正在分析图片中的食材..."
+                            android:textSize="13sp"
+                            android:textColor="@color/gray_600"
+                            android:gravity="center"
+                            android:layout_marginBottom="12dp" />
+
+                        <ProgressBar
+                            android:id="@+id/progress_bar"
+                            android:layout_width="match_parent"
+                            android:layout_height="3dp"
+                            style="?android:attr/progressBarStyleHorizontal"
+                            android:indeterminate="false"
+                            android:progressTint="@color/primary_mint"
+                            android:layout_marginBottom="4dp" />
+
+                        <TextView
+                            android:id="@+id/tv_progress_percent"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="0%"
+                            android:textSize="11sp"
+                            android:textColor="@color/gray_500" />
+                    </LinearLayout>
+                </androidx.cardview.widget.CardView>
+            </FrameLayout>
+
+            <!-- 图片预览区域 -->
+            <androidx.cardview.widget.CardView
+                android:id="@+id/card_image_preview"
+                android:layout_width="280dp"
+                android:layout_height="280dp"
+                app:cardCornerRadius="20dp"
+                app:cardElevation="8dp"
+                app:cardBackgroundColor="@color/white"
+                android:layout_marginBottom="16dp">
+
+                <ImageView
+                    android:id="@+id/imageView"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scaleType="centerCrop"
+                    android:background="@color/gray_200"
+                    android:contentDescription="食材照片预览" />
+            </androidx.cardview.widget.CardView>
+
+            <!-- 按钮组 -->
+            <LinearLayout
+                android:id="@+id/layout_buttons"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center"
+                android:layout_marginBottom="16dp">
+
+                <Button
+                    android:id="@+id/btn_take_photo"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="48dp"
+                    android:layout_marginEnd="8dp"
+                    android:text="拍摄"
+                    android:textColor="@color/white"
+                    android:backgroundTint="@color/primary_mint"
+                    app:cornerRadius="24dp" />
+
+                <Button
+                    android:id="@+id/btn_pick_photo"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="48dp"
+                    android:layout_marginStart="8dp"
+                    android:text="相册"
+                    android:textColor="@color/gray_700"
+                    android:backgroundTint="@color/white"
+                    app:cornerRadius="24dp"
+                    app:strokeColor="@color/gray_300"
+                    app:strokeWidth="1dp" />
+            </LinearLayout>
+
+            <!-- 确认按钮 -->
+            <Button
+                android:id="@+id/btn_confirm_photo"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:text="确认并开始AI识别"
+                android:textColor="@color/white"
+                android:enabled="false"
+                android:backgroundTint="@color/gray_400"
+                app:cornerRadius="26dp"
+                android:layout_marginBottom="10dp" />
+
         </LinearLayout>
+    </ScrollView>
 
-        <Button
-            android:id="@+id/btn_confirm_photo"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="✅ 确认并开始AI识别"
-            android:enabled="false"
-            android:backgroundTint="#9E9E9E"/>
-    </LinearLayout>
 </RelativeLayout>

@@ -1,19 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-
-    <!-- 背景图片 -->
-    <item>
-        <bitmap
-            android:src="@drawable/background"
-            android:gravity="center"
-            android:tileMode="disabled" />
-    </item>
-
-    <!-- 半透明覆盖层（40% 黑色透明度，让文字更清晰） -->
+    <!-- 纯白色背景 -->
     <item>
         <shape android:shape="rectangle">
-            <solid android:color="#66000000" /> <!-- #66 = 40% 透明度 -->
+            <solid android:color="#FFFFFF" />
         </shape>
     </item>
-
 </layer-list>

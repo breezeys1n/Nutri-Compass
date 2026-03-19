@@ -18,6 +18,7 @@ import com.google.android.material.button.MaterialButton;
 import com.google.android.material.card.MaterialCardView;
 
 import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -37,14 +38,12 @@ public class WeeklyReportActivity extends AppCompatActivity {
     private TextView tvAvgFat;
     private TextView tvNutritionRatio;
 
-    // 分析和建议（改为TextView，因为布局中用的是TextView）
+    // 分析和建议
     private TextView tvStrengths;
     private TextView tvSuggestions;
+    // 移除 tvWeaknesses 的声明
 
-    // 可选的缺点TextView（如果布局中有）
-    private TextView tvWeaknesses;
-
-    // 趋势卡片（可选）
+    // 趋势卡片
     private MaterialCardView cardTrend;
 
     // 按钮
@@ -90,14 +89,12 @@ public class WeeklyReportActivity extends AppCompatActivity {
         tvAvgFat = findViewById(R.id.tv_avg_fat);
         tvNutritionRatio = findViewById(R.id.tv_nutrition_ratio);
 
-        // 分析和建议（使用TextView）
+        // 分析和建议 - 只初始化布局中存在的控件
         tvStrengths = findViewById(R.id.tv_strengths);
         tvSuggestions = findViewById(R.id.tv_suggestions);
+        // 移除 tvWeaknesses 的初始化
 
-        // 可选的缺点TextView（如果布局中有就取消注释）
-        // tvWeaknesses = findViewById(R.id.tv_weaknesses);
-
-        // 趋势卡片（可选）
+        // 趋势卡片
         cardTrend = findViewById(R.id.card_trend);
 
         // 按钮
@@ -110,7 +107,6 @@ public class WeeklyReportActivity extends AppCompatActivity {
 
         btnHistory.setOnClickListener(v -> {
             Toast.makeText(this, "历史报告功能开发中", Toast.LENGTH_SHORT).show();
-            // TODO: 跳转到历史报告列表页面
         });
     }
 
@@ -124,52 +120,51 @@ public class WeeklyReportActivity extends AppCompatActivity {
                     return;
                 }
 
-                // 先获取所有数据看看
+                // 获取所有数据
                 List<Recipe> allRecipes = recipeDatabase.getAllRecipes();
                 Log.d(TAG, "数据库中共有 " + allRecipes.size() + " 条记录");
 
+                // 如果数据库为空，显示空状态
                 if (allRecipes.isEmpty()) {
-                    tvStrengths.setText("暂无饮食记录");
-                    Toast.makeText(this, "暂无数据", Toast.LENGTH_SHORT).show();
+                    showEmptyState();
                     return;
                 }
 
-                // 打印所有日期以便调试
-                for (Recipe r : allRecipes) {
-                    Log.d(TAG, "记录日期: " + r.getDate() +
-                            ", 热量: " + r.getCalories() +
-                            ", 蛋白质: " + r.getProtein() +
-                            ", 碳水: " + r.getCarbs() +
-                            ", 脂肪: " + r.getFat());
+                // 获取数据库中最早的日期和最晚的日期
+                String[] dateRange = recipeDatabase.getDateRange();
+                Log.d(TAG, "数据库日期范围: " + dateRange[0] + " 至 " + dateRange[1]);
+
+                if (dateRange[0] == null || dateRange[1] == null) {
+                    showEmptyState();
+                    return;
                 }
 
-                // 使用样例数据的日期范围
-                String startDate = "2024-01-15";
-                String endDate = "2024-01-21";
+                // 尝试使用上周的范围
+                String startDate = dateRange[0];
+                String endDate = dateRange[1];
 
-                Log.d(TAG, "使用日期范围: " + startDate + " 至 " + endDate);
+                // 如果数据量较少，使用所有数据的范围
+                if (allRecipes.size() < 7) {
+                    Log.d(TAG, "数据量较少，使用所有数据的范围");
+                } else {
+                    // 如果有足够数据，尝试使用上周
+                    String[] lastWeekRange = reportGenerator.getLastWeekRange();
+                    startDate = lastWeekRange[0];
+                    endDate = lastWeekRange[1];
+                    Log.d(TAG, "使用上周范围: " + startDate + " 至 " + endDate);
+                }
 
                 // 生成报告
                 currentReport = reportGenerator.generateReport(startDate, endDate);
 
                 if (currentReport != null) {
-                    // 打印报告数据，看看实际计算出了什么
-                    WeeklyReport.NutritionSummary avg = currentReport.getDailyAvg();
-                    if (avg != null) {
-                        Log.d(TAG, "报告日均数据 - 热量: " + avg.getCalories() +
-                                ", 蛋白质: " + avg.getProtein() +
-                                ", 碳水: " + avg.getCarbs() +
-                                ", 脂肪: " + avg.getFat());
-                    }
-
                     if (currentReport.hasData()) {
                         reportDatabase.saveWeeklyReport(currentReport);
                         displayReport();
                         Toast.makeText(this, "报告生成成功，共 " + currentReport.getTotalMeals() + " 条记录", Toast.LENGTH_SHORT).show();
                     } else {
                         Log.d(TAG, "报告无数据");
-                        tvStrengths.setText("该时间段无数据");
-                        Toast.makeText(this, "该时间段无数据", Toast.LENGTH_SHORT).show();
+                        showNoDataState();
                     }
                 } else {
                     Toast.makeText(this, "报告生成失败", Toast.LENGTH_SHORT).show();
@@ -182,6 +177,45 @@ public class WeeklyReportActivity extends AppCompatActivity {
                 if (progressBar != null) progressBar.setVisibility(View.GONE);
             }
         }, 500);
+    }
+
+    private void showEmptyState() {
+        tvWeekRange.setText("暂无饮食记录");
+        tvGenerateTime.setText("生成于 " + getCurrentTime());
+        tvTotalMeals.setText("0");
+        tvUniqueRecipes.setText("0");
+        tvAvgCalories.setText("0");
+        tvAvgProtein.setText("0");
+        tvAvgCarbs.setText("0");
+        tvAvgFat.setText("0");
+
+        if (tvNutritionRatio != null) {
+            tvNutritionRatio.setVisibility(View.GONE);
+        }
+
+        if (tvStrengths != null) {
+            tvStrengths.setText("暂无饮食记录\n快去生成你的第一份食谱吧！");
+        }
+
+        if (tvSuggestions != null) {
+            tvSuggestions.setText("开始使用膳愈，记录你的健康饮食");
+        }
+
+        if (cardTrend != null) {
+            cardTrend.setVisibility(View.GONE);
+        }
+    }
+
+    private void showNoDataState() {
+        if (tvStrengths != null) {
+            tvStrengths.setText("该时间段无数据");
+        }
+        if (tvSuggestions != null) {
+            tvSuggestions.setText("尝试生成更多食谱记录");
+        }
+        if (cardTrend != null) {
+            cardTrend.setVisibility(View.GONE);
+        }
     }
 
     private void displayReport() {
@@ -243,21 +277,9 @@ public class WeeklyReportActivity extends AppCompatActivity {
             }
         }
 
-        // 显示缺点（如果布局中有）
-        if (tvWeaknesses != null) {
-            List<String> weaknesses = currentReport.getWeaknesses();
-            if (weaknesses != null && !weaknesses.isEmpty()) {
-                StringBuilder sb = new StringBuilder();
-                for (String w : weaknesses) {
-                    sb.append("• ").append(w).append("\n");
-                }
-                tvWeaknesses.setText(sb.toString().trim());
-            } else {
-                tvWeaknesses.setText("无明显问题");
-            }
-        }
+        // 移除缺点相关的代码
 
-        // 控制趋势卡片显示（如果有数据且布局中有）
+        // 控制趋势卡片显示
         if (cardTrend != null) {
             boolean hasTrendData = currentReport.getCalorieTrend() != null &&
                     !currentReport.getCalorieTrend().isEmpty();
@@ -265,9 +287,6 @@ public class WeeklyReportActivity extends AppCompatActivity {
         }
     }
 
-    /**
-     * 分享方法
-     */
     private void shareReport() {
         if (currentReport == null) {
             Toast.makeText(this, "暂无报告数据", Toast.LENGTH_SHORT).show();
@@ -276,16 +295,13 @@ public class WeeklyReportActivity extends AppCompatActivity {
 
         String shareText = generateShareText();
 
-        // 创建分享Intent
         Intent shareIntent = new Intent(Intent.ACTION_SEND);
         shareIntent.setType("text/plain");
-        shareIntent.putExtra(Intent.EXTRA_SUBJECT, "我的膳愈健康周报"); // 添加主题
+        shareIntent.putExtra(Intent.EXTRA_SUBJECT, "我的膳愈健康周报");
         shareIntent.putExtra(Intent.EXTRA_TEXT, shareText);
 
-        // 创建选择器
         Intent chooser = Intent.createChooser(shareIntent, "分享健康周报");
 
-        // 检查是否有应用可以处理
         if (shareIntent.resolveActivity(getPackageManager()) != null) {
             startActivity(chooser);
         } else {
@@ -293,25 +309,16 @@ public class WeeklyReportActivity extends AppCompatActivity {
         }
     }
 
-    /**
-     * 生成分享文本
-     */
     private String generateShareText() {
         StringBuilder sb = new StringBuilder();
 
-        // 头部
         sb.append("【膳愈】我的本周健康报告\n");
         sb.append("═══════════════════\n\n");
-
-        // 周期
         sb.append("📅 周期：").append(currentReport.getWeekRangeDesc()).append("\n\n");
-
-        // 基础统计
         sb.append("📊 本周概况\n");
         sb.append("   • 总餐次：").append(currentReport.getTotalMeals()).append(" 餐\n");
         sb.append("   • 不同菜品：").append(currentReport.getUniqueRecipes()).append(" 种\n\n");
 
-        // 营养数据
         WeeklyReport.NutritionSummary avg = currentReport.getDailyAvg();
         if (avg != null) {
             sb.append("🍽️ 日均摄入\n");
@@ -321,7 +328,6 @@ public class WeeklyReportActivity extends AppCompatActivity {
             sb.append("   • 脂肪：").append(String.format(Locale.CHINA, "%.1f", avg.getFat())).append(" g\n\n");
         }
 
-        // 营养比例
         WeeklyReport.NutritionRatio ratio = currentReport.getRatio();
         if (ratio != null) {
             sb.append("⚖️ 供能比例\n");
@@ -330,7 +336,6 @@ public class WeeklyReportActivity extends AppCompatActivity {
             sb.append("   • ").append(ratio.getFatPercent()).append(" 脂肪\n\n");
         }
 
-        // 优点
         List<String> strengths = currentReport.getStrengths();
         if (strengths != null && !strengths.isEmpty()) {
             sb.append("✅ 本周优点\n");
@@ -340,7 +345,6 @@ public class WeeklyReportActivity extends AppCompatActivity {
             sb.append("\n");
         }
 
-        // 建议
         List<String> suggestions = currentReport.getSuggestions();
         if (suggestions != null && !suggestions.isEmpty()) {
             sb.append("💡 改进建议\n");
@@ -350,37 +354,26 @@ public class WeeklyReportActivity extends AppCompatActivity {
             sb.append("\n");
         }
 
-        // 底部
         sb.append("═══════════════════\n");
         sb.append("来自 膳愈AI 健康助手");
 
         return sb.toString();
     }
 
-    /**
-     * 显示/隐藏加载进度
-     */
     private void showLoading(boolean show) {
         if (progressBar != null) {
             progressBar.setVisibility(show ? View.VISIBLE : View.GONE);
         }
     }
 
-    /**
-     * 显示错误信息
-     */
     private void showError(String message) {
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
     }
 
-    /**
-     * 手动刷新报告
-     */
     private void refreshReport() {
         showLoading(true);
 
         new Handler(Looper.getMainLooper()).postDelayed(() -> {
-            // 重新生成上周报告
             currentReport = reportGenerator.generateLastWeekReport();
             if (currentReport != null && currentReport.hasData()) {
                 reportDatabase.saveWeeklyReport(currentReport);
@@ -391,9 +384,6 @@ public class WeeklyReportActivity extends AppCompatActivity {
         }, 500);
     }
 
-    /**
-     * 获取当前时间字符串
-     */
     private String getCurrentTime() {
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.CHINA);
         return sdf.format(new Date());
