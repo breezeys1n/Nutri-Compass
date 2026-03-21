@@ -93,8 +93,18 @@ public class KnowledgeGraphAPI {
             JSONArray recipesArray = new JSONArray(jsonString);
             for (int i = 0; i < recipesArray.length(); i++) {
                 JSONObject recipeObj = recipesArray.getJSONObject(i);
-                String url = recipeObj.optString("url", "");  // 若无 url 则使用空字符串
+
+                // 唯一标识（优先 url，若无则用 title+索引）
+                String uniqueKey;
+                if (recipeObj.has("url")) {
+                    uniqueKey = recipeObj.getString("url");
+                } else {
+                    uniqueKey = recipeObj.getString("title") + "_" + i;
+                }
+
                 String title = recipeObj.getString("title");
+                // 获取菜系，若无则设为空字符串
+                String cuisine = recipeObj.optString("cuisine", "");
 
                 // 解析食材
                 JSONArray ingredientsArray = recipeObj.getJSONArray("ingredients");
@@ -105,7 +115,7 @@ public class KnowledgeGraphAPI {
                     ingredientNames.add(ingName);
                 }
 
-                // 解析步骤（可能不存在）
+                // 解析步骤
                 List<String> steps = new ArrayList<>();
                 if (recipeObj.has("steps")) {
                     JSONArray stepsArray = recipeObj.getJSONArray("steps");
@@ -115,20 +125,24 @@ public class KnowledgeGraphAPI {
                 }
 
                 // 添加到图谱
-                addRecipe(url, title, ingredientNames, steps);
+                addRecipe(uniqueKey, title, cuisine, ingredientNames, steps);
             }
         } catch (JSONException e) {
             e.printStackTrace();
         }
     }
 
-    private void addRecipe(String url, String name, List<String> ingredientNames, List<String> steps) {
-        if (addedRecipeUrls.contains(url)) return;
+    private void addRecipe(String id, String name, String cuisine, List<String> ingredientNames, List<String> steps) {
+        // 去重检查
+        if (addedRecipeUrls.contains(id)) {
+            return;
+        }
 
-        Recipe recipe = new Recipe(name, ingredientNames, steps);
+        Recipe recipe = new Recipe(name, cuisine, ingredientNames, steps);
         allRecipes.add(recipe);
-        addedRecipeUrls.add(url);
+        addedRecipeUrls.add(id);
 
+        // 建立倒排索引
         for (String ingName : ingredientNames) {
             if (!ingredientMap.containsKey(ingName)) {
                 String category = classifier.classify(ingName);
@@ -254,9 +268,11 @@ public class KnowledgeGraphAPI {
         private String name;
         private List<String> ingredients;
         private  List<String> steps;
+        private String cuisine;
 
-        public Recipe(String name, List<String> ingredients, List<String> steps) {
+        public Recipe(String name, String cuisine, List<String> ingredients, List<String> steps) {
             this.name = name;
+            this.cuisine = cuisine;
             this.ingredients = ingredients;
             this.steps = steps;
         }
@@ -264,6 +280,7 @@ public class KnowledgeGraphAPI {
         public String getName() { return name; }
         public List<String> getIngredients() { return ingredients; }
         public List<String> getSteps() { return steps; }
+        public String getCuisine() { return cuisine; }
 
         @Override
         public String toString() {

@@ -92,7 +92,10 @@ public class RecipeAnalyzer {
 
                         // 菜名
                         ragReference.append("菜名：").append(recipe.getName()).append("\n");
-
+                        String cuisine = recipe.getCuisine();
+                        if (cuisine != null && !cuisine.isEmpty()) {
+                            ragReference.append("菜系：").append(cuisine).append("\n");
+                        }
                         // 食材列表
                         List<String> ingredientNames = recipe.getIngredients();
                         if (!ingredientNames.isEmpty()) {
