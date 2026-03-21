@@ -100,7 +100,8 @@ public class RecipeAnalyzer {
                         List<String> ingredientNames = recipe.getIngredients();
                         if (!ingredientNames.isEmpty()) {
                             ragReference.append("食材：\n");
-                            for (String name : ingredientNames) {
+                            for (String name : ingredientNames) {.
+
                                 ragReference.append("  - ").append(name).append("\n");
                             }
                         }
