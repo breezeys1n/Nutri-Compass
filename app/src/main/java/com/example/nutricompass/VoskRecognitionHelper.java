@@ -376,6 +376,21 @@ public class VoskRecognitionHelper {
      * 开始录音识别
      */
     public void startRecording() {
+        // ==================== 添加权限检查 ====================
+        Context context = contextRef.get();
+        if (context == null) {
+            mainHandler.post(() -> callback.onError("Context为空"));
+            return;
+        }
+
+        if (androidx.core.content.ContextCompat.checkSelfPermission(context,
+                android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            mainHandler.post(() -> callback.onError("没有录音权限"));
+            Log.e(TAG, "没有录音权限");
+            return;
+        }
+        // ====================================================
+
         if (isRecording) {
             Log.w(TAG, "已经在录音中");
             return;
@@ -399,7 +414,7 @@ public class VoskRecognitionHelper {
             Log.d(TAG, "使用buffer大小: " + bufferSize);
 
             audioRecord = new AudioRecord(
-                    MediaRecorder.AudioSource.MIC, // 使用麦克风
+                    MediaRecorder.AudioSource.MIC,
                     SAMPLE_RATE,
                     CHANNEL_CONFIG,
                     AUDIO_FORMAT,
@@ -463,11 +478,14 @@ public class VoskRecognitionHelper {
      */
     public void stopRecording() {
         Log.i(TAG, "停止录音");
+
+        // 先设置标志位，让线程退出循环
         isRecording = false;
 
+        // 等待识别线程结束
         if (recognitionThread != null) {
-            recognitionThread.interrupt();
             try {
+                recognitionThread.interrupt();
                 recognitionThread.join(500);
             } catch (InterruptedException e) {
                 Log.e(TAG, "等待识别线程结束失败", e);
@@ -475,6 +493,7 @@ public class VoskRecognitionHelper {
             recognitionThread = null;
         }
 
+        // 释放录音设备
         releaseAudioRecord();
 
         // 获取最终结果
@@ -495,7 +514,7 @@ public class VoskRecognitionHelper {
         mainHandler.post(() -> {
             callback.onRecordingStopped();
             callback.onStatus("已停止录音");
-            callback.onPartialResult(""); // 清空部分结果显示
+            callback.onPartialResult("");
         });
     }
 
@@ -521,8 +540,25 @@ public class VoskRecognitionHelper {
      */
     public void release() {
         Log.i(TAG, "释放所有资源");
-        stopRecording();
 
+        // 停止录音
+        isRecording = false;
+
+        // 等待识别线程结束
+        if (recognitionThread != null) {
+            recognitionThread.interrupt();
+            try {
+                recognitionThread.join(500);
+            } catch (InterruptedException e) {
+                Log.e(TAG, "等待识别线程结束失败", e);
+            }
+            recognitionThread = null;
+        }
+
+        // 释放录音设备
+        releaseAudioRecord();
+
+        // 关闭识别器
         if (recognizer != null) {
             try {
                 recognizer.close();
@@ -533,6 +569,7 @@ public class VoskRecognitionHelper {
             recognizer = null;
         }
 
+        // 关闭模型
         if (model != null) {
             try {
                 model.close();

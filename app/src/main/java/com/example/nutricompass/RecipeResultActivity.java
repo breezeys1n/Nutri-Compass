@@ -26,7 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-public class RecipeResultActivity extends AppCompatActivity implements SpeechService.SpeechCallback{
+public class RecipeResultActivity extends AppCompatActivity implements SpeechService.SpeechCallback {
     private static final String TAG = "RecipeResultActivity";
     private TextView tvRecipeName, tvRecipeDescription, tvRecipeReason, tvWeatherInfo;
     private TextView tvRecipeNutrition, tvCookingTips, tvUserData;
@@ -38,16 +38,18 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
     private ImageButton btnVoiceControl;
     private SpeechService speechService;
     private List<String> cookingStepsList = new ArrayList<>();
-    private Button btnFlavorMigration;  // 新增风味迁移按钮
-    private Recipe currentRecipe;       // 保存当前食谱
-    private FlavorMigrationClient flavorClient; // 风味迁移客户端
+    private Button btnFlavorMigration;
+    private Recipe currentRecipe;
+    private FlavorMigrationClient flavorClient;
+
+    // ==================== 新增：记录当前食谱的数据库ID ====================
+    private int currentRecipeId = -1;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_recipe_result);
 
-        // 初始化风味迁移客户端 - 传入this
         flavorClient = new FlavorMigrationClient(this);
 
         BackButtonUtil.setupBackButton(this);
@@ -56,30 +58,16 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
 
         Recipe recipe = (Recipe) getIntent().getSerializableExtra("recipe");
         if (recipe != null) {
-            this.currentRecipe = recipe;
             displayRecipeFromObject(recipe);
-
-            // 只在首次生成时保存一次，且不是从风味改良来的
-            boolean isFromMigration = getIntent().getBooleanExtra("is_from_migration", false);
-            if (!isFromMigration) {
-                saveRecipeToHistory(recipe);
-            }
         } else {
-            // 兼容旧的散装数据方式
             displayRecipeInfo();
         }
-        /*if (recipe != null) {
-            displayRecipeFromObject(recipe);
-        } else {
-            displayRecipeInfo();
-        }*/
 
         displayUserInfo();
         checkTTSAvailability();
         initSpeechService();
         setupButtonListeners();
 
-        // 新增：初始化风味迁移按钮
         btnFlavorMigration = findViewById(R.id.btn_flavor_migration);
         if (btnFlavorMigration != null) {
             btnFlavorMigration.setOnClickListener(v -> {
@@ -88,9 +76,6 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
         }
     }
 
-    /**
-     * 显示菜系选择对话框
-     */
     private void showFlavorSelectionDialog() {
         String[] cuisines = {
                 "川菜 (麻辣)", "粤菜 (鲜香)", "苏菜 (甜鲜)",
@@ -102,35 +87,25 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
                 .setTitle("选择目标风味")
                 .setItems(cuisines, (dialog, which) -> {
                     String selectedCuisine = cuisines[which];
-                    // 调用风味迁移生成新食谱
                     callFlavorMigration(selectedCuisine);
                 })
                 .show();
     }
 
-    /**
-     * 调用风味迁移生成新食谱
-     */
     private void callFlavorMigration(String targetCuisine) {
-        // 添加空值检查
         if (currentRecipe == null) {
             Toast.makeText(this, "当前食谱为空，无法进行风味迁移", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // 显示加载对话框
         ProgressDialog progressDialog = new ProgressDialog(this);
         progressDialog.setMessage("正在将食谱改良为 " + targetCuisine + "...");
         progressDialog.setCancelable(false);
         progressDialog.show();
 
-        // 将当前食谱转换为 JSON
         JSONObject recipeJson = convertRecipeToJson(currentRecipe);
-
-        // 获取食材列表
         List<String> ingredients = currentRecipe.getIngredients();
 
-        // 调用风味迁移模型
         flavorClient.migrateRecipe(
                 recipeJson,
                 targetCuisine,
@@ -139,7 +114,6 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
                 new FlavorMigrationClient.MigrationCallback() {
                     @Override
                     public void onSuccess(JSONObject migratedRecipe) {
-                        // 风味迁移成功，现在调用原大模型生成完整食谱
                         callOriginalModelWithMigrated(migratedRecipe, targetCuisine, progressDialog);
                     }
 
@@ -155,16 +129,11 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
         );
     }
 
-    /**
-     * 调用原大模型生成完整食谱
-     */
     private void callOriginalModelWithMigrated(JSONObject migratedRecipe, String cuisine, ProgressDialog progressDialog) {
-        // 更新进度对话框消息
         runOnUiThread(() -> {
             progressDialog.setMessage("大厨正在为您优化食谱...");
         });
 
-        // 将迁移后的食谱转换为字符串格式
         StringBuilder ingredientsStr = new StringBuilder();
         try {
             JSONArray ingredients = migratedRecipe.getJSONArray("ingredients");
@@ -180,39 +149,45 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
             Log.e(TAG, "解析食材失败", e);
         }
 
-        // 获取用户信息
         UserProfile userProfile = new UserProfile(this);
         String userGoal = userProfile.getGoal();
         String userCondition = "";
 
-        // 调用 RecipeAnalyzer 的生成方法
         RecipeAnalyzer analyzer = new RecipeAnalyzer(this);
 
         analyzer.generateFromMigration(
                 ingredientsStr.toString(),
                 userGoal,
                 userCondition,
-                migratedRecipe,  // 传入迁移后的食谱
-                cuisine,         // 传入菜系
+                migratedRecipe,
+                cuisine,
                 new RecipeAnalyzer.GenerationCallback() {
                     @Override
                     public void onSuccess(Recipe finalRecipe) {
                         runOnUiThread(() -> {
                             progressDialog.dismiss();
 
-                            /*// 显示最终食谱
+                            // ==================== 替换原食谱 ====================
+                            RecipeDatabase db = new RecipeDatabase(RecipeResultActivity.this);
+
+                            if (currentRecipeId != -1) {
+                                db.deleteRecipe(currentRecipeId);
+                                Log.d(TAG, "已删除原食谱，ID: " + currentRecipeId);
+                            }
+
+                            long newId = db.addRecipe(finalRecipe);
+                            if (newId != -1) {
+                                finalRecipe.setId((int) newId);
+                                currentRecipeId = (int) newId;
+                                Log.d(TAG, "已保存新食谱，新ID: " + newId);
+                            }
+                            // ==================================================
+
                             displayNewRecipe(finalRecipe, cuisine);
 
                             Toast.makeText(RecipeResultActivity.this,
                                     "已生成 " + cuisine + " 风味的完整食谱！",
-                                    Toast.LENGTH_SHORT).show();*/
-                            // 跳转到新页面显示最终食谱，并标记为来自改良
-                            Intent intent = new Intent(RecipeResultActivity.this,
-                                    RecipeResultActivity.class);
-                            intent.putExtra("recipe", finalRecipe);
-                            intent.putExtra("is_from_migration", true);  // 标记来自改良
-                            startActivity(intent);
-                            finish();  // 关闭当前页面
+                                    Toast.LENGTH_SHORT).show();
                         });
                     }
 
@@ -228,28 +203,12 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
         );
     }
 
-    /**
-     * 显示新生成的食谱
-     */
     private void displayNewRecipe(Recipe newRecipe, String cuisine) {
-        // 更新当前食谱为新生成的
         this.currentRecipe = newRecipe;
-
-        // 刷新界面显示新食谱
         displayRecipeFromObject(newRecipe);
-
-        // 显示提示
-        Toast.makeText(this,
-                "已生成 " + cuisine + " 风味的新食谱！",
-                Toast.LENGTH_SHORT).show();
-
-        // 可选：将新食谱保存到历史记录
-        saveRecipeToHistory(newRecipe);
+        Toast.makeText(this, "已生成 " + cuisine + " 风味的新食谱！", Toast.LENGTH_SHORT).show();
     }
 
-    /**
-     * 将 Recipe 转换为 JSON（给风味迁移模型用）
-     */
     private JSONObject convertRecipeToJson(Recipe recipe) {
         if (recipe == null) {
             Log.e(TAG, "convertRecipeToJson: recipe is null");
@@ -301,9 +260,6 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
         }
     }
 
-    /**
-     * 将 JSON 转换为 Recipe
-     */
     private Recipe convertJsonToRecipe(JSONObject json) {
         Recipe recipe = new Recipe();
         try {
@@ -337,7 +293,6 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
                 recipe.setNutrition(ni);
             }
 
-            // 设置其他字段
             recipe.setReason("基于 " + json.optString("name", "原食谱") + " 的风味改良版本");
             recipe.setPreparationTime("约20分钟");
             recipe.setCookingTime("约25分钟");
@@ -353,12 +308,35 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
         return new UserProfile(this).getGoal();
     }
 
-    /**
-     * 保存到历史记录
-     */
     private void saveRecipeToHistory(Recipe recipe) {
         new RecipeDatabase(this).addRecipe(recipe);
     }
+
+    // ==================== 新增：保存前检查重复 ====================
+    private void saveRecipeToHistoryIfNotExists(Recipe recipe) {
+        RecipeDatabase db = new RecipeDatabase(this);
+        List<Recipe> existingRecipes = db.getAllRecipes();
+
+        boolean exists = false;
+        for (Recipe existing : existingRecipes) {
+            if (existing.getTitle() != null && existing.getTitle().equals(recipe.getTitle()) &&
+                    existing.getDate() != null && existing.getDate().equals(recipe.getDate())) {
+                exists = true;
+                currentRecipeId = existing.getId();
+                Log.d(TAG, "食谱已存在，ID: " + currentRecipeId + "，不重复保存");
+                break;
+            }
+        }
+
+        if (!exists) {
+            long id = db.addRecipe(recipe);
+            if (id != -1) {
+                currentRecipeId = (int) id;
+                Log.d(TAG, "保存新食谱，ID: " + id);
+            }
+        }
+    }
+    // ============================================================
 
     private void initViews() {
         tvRecipeName = findViewById(R.id.tv_recipe_name);
@@ -419,7 +397,6 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
         displayIngredients(ingredients);
         displayCookingSteps(steps);
 
-        // 创建 Recipe 对象并保存到 currentRecipe
         Recipe recipe = new Recipe();
         recipe.setTitle(recipeName);
         recipe.setDescription(recipeDescription);
@@ -435,38 +412,46 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
             for (String s : steps) recipe.addCookingStep(s);
         }
 
-        // 保存到 currentRecipe
         this.currentRecipe = recipe;
 
-        /*saveRecipeToHistory(recipeName, recipeDescription, recipeReason,
-                recipeNutrition, ingredients, steps, prepTime,
-                cookTime, difficulty, cookingTips);*/
+        // ==================== 修改：使用重复检查方法 ====================
+        saveRecipeToHistoryIfNotExists(recipe);
+        // ============================================================
     }
 
     private void displayRecipeFromObject(Recipe recipe) {
-        // 先保存到 currentRecipe
         this.currentRecipe = recipe;
+
+        // ==================== 新增：获取当前食谱的数据库ID ====================
+        RecipeDatabase db = new RecipeDatabase(this);
+        List<Recipe> allRecipes = db.getAllRecipes();
+        for (Recipe r : allRecipes) {
+            if (r.getTitle() != null && r.getTitle().equals(recipe.getTitle()) &&
+                    r.getDate() != null && r.getDate().equals(recipe.getDate())) {
+                currentRecipeId = r.getId();
+                Log.d(TAG, "找到已存在的食谱，ID: " + currentRecipeId);
+                break;
+            }
+        }
+        // ==================================================================
 
         tvRecipeName.setText(recipe.getTitle());
         tvRecipeDescription.setText(recipe.getDescription());
         tvRecipeReason.setText(recipe.getReason());
         tvWeatherInfo.setText("🌤️ " + (recipe.getWeatherCondition() != null ? recipe.getWeatherCondition() : ""));
 
-        // ==== 修复营养信息显示 ====
         if (recipe.getNutrition() != null && recipe.getNutrition().getCalories() > 0) {
             NutritionInfo n = recipe.getNutrition();
             tvRecipeNutrition.setText(String.format(Locale.CHINA,
                     "热量: %.0f大卡 | 蛋白质: %.1fg | 碳水: %.1fg | 脂肪: %.1fg",
                     n.getCalories(), n.getProtein(), n.getCarbs(), n.getFat()));
         } else if (recipe.getCalories() > 0) {
-            // 兼容旧的存储方式（直接使用 recipe 的 calories 字段）
             tvRecipeNutrition.setText(String.format(Locale.CHINA,
                     "热量: %d大卡 | 蛋白质: %.1fg | 碳水: %.1fg | 脂肪: %.1fg",
                     recipe.getCalories(), recipe.getProtein(), recipe.getCarbs(), recipe.getFat()));
         } else {
             tvRecipeNutrition.setText(recipe.getBriefNutrition());
         }
-        // =========================
 
         tvPrepTimeValue.setText(recipe.getPreparationTime());
         tvCookTimeValue.setText(recipe.getCookingTime());
@@ -501,11 +486,9 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
         if (nutritionStr != null) {
             NutritionInfo info = new NutritionInfo();
             try {
-                // 将常见的特殊符号替换，统一分隔符
                 String cleanStr = nutritionStr.replace("：", ":").replace("克", "g");
                 String[] parts = cleanStr.split("\\|");
                 for (String part : parts) {
-                    // 正则提取数字
                     String numStr = part.replaceAll("[^0-9.]", "");
                     if (numStr.isEmpty()) continue;
                     double val = Double.parseDouble(numStr);
@@ -539,7 +522,6 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
 
     private void displayCookingSteps(String[] steps) {
         layoutStepsContainer.removeAllViews();
-        // 此处不再重复 clear cookingStepsList，因为在 displayRecipeFromObject 已处理
         if (steps == null) return;
 
         for (int i = 0; i < steps.length; i++) {
@@ -550,7 +532,6 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
             tvStepNumber.setText(String.valueOf(i + 1));
             tvStepDescription.setText(steps[i]);
 
-            // 高亮当前朗读的步骤
             v.setTag(i);
             layoutStepsContainer.addView(v);
         }
@@ -567,26 +548,21 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
             Log.d(TAG, "开始点击跳转按钮...");
 
             try {
-                // 1. 停止语音，但不要 shutdown！
                 if (speechService != null) {
                     speechService.stopSpeaking();
                 }
 
-                // 2. 准备跳转数据
                 Intent intent = new Intent(RecipeResultActivity.this, TalkWithAIActivity.class);
 
-                // 获取食谱名称
                 String name = (tvRecipeName != null) ? tvRecipeName.getText().toString() : "未知食谱";
                 intent.putExtra("recipe_name", name);
 
-                // 获取步骤列表（确保 cookingStepsList 不为 null）
                 if (cookingStepsList != null) {
                     intent.putStringArrayListExtra("recipe_steps", new ArrayList<>(cookingStepsList));
                 } else {
                     intent.putStringArrayListExtra("recipe_steps", new ArrayList<>());
                 }
 
-                // 3. 执行跳转
                 Log.d(TAG, "正在启动 TalkWithAIActivity...");
                 startActivity(intent);
 
@@ -597,7 +573,6 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
             }
         });
 
-        // 语音按钮监听
         if (btnVoiceControl != null) {
             btnVoiceControl.setOnClickListener(v -> {
                 if (cookingStepsList.isEmpty()) {
@@ -626,10 +601,8 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
     public void onSpeechDone(int stepIndex) {
         runOnUiThread(() -> {
             if (stepIndex >= 0) {
-                // 单个步骤完成
                 clearStepHighlight(stepIndex);
             } else {
-                // 所有步骤完成
                 Toast.makeText(this, "烹饪步骤朗读完成", Toast.LENGTH_SHORT).show();
             }
         });
@@ -645,7 +618,6 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
     @Override
     public void onSpeechStopped() {
         runOnUiThread(() -> {
-            // 清除所有高亮
             for (int i = 0; i < layoutStepsContainer.getChildCount(); i++) {
                 View stepView = layoutStepsContainer.getChildAt(i);
                 if (stepView != null) {
@@ -656,11 +628,7 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
         });
     }
 
-    /**
-     * 高亮显示当前朗读的步骤
-     */
     private void highlightCurrentStep(int stepIndex) {
-        // 先清除所有高亮
         for (int i = 0; i < layoutStepsContainer.getChildCount(); i++) {
             View stepView = layoutStepsContainer.getChildAt(i);
             if (stepView != null) {
@@ -668,7 +636,6 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
             }
         }
 
-        // 高亮当前步骤
         if (stepIndex >= 0 && stepIndex < layoutStepsContainer.getChildCount()) {
             View currentStepView = layoutStepsContainer.getChildAt(stepIndex);
             if (currentStepView != null) {
@@ -687,13 +654,11 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
     }
 
     private void checkTTSAvailability() {
-        // 使用数组或原子引用来绕过匿名内部类对变量 final 的限制
         final TextToSpeech[] ttsHolder = new TextToSpeech[1];
 
         ttsHolder[0] = new TextToSpeech(this, status -> {
             try {
                 if (status == TextToSpeech.SUCCESS) {
-                    // 确保对象已经赋值给数组
                     if (ttsHolder[0] != null) {
                         Locale locale = ttsHolder[0].getLanguage();
                         Log.d(TAG, "当前TTS语言: " + (locale != null ? locale.toString() : "未知"));
@@ -712,12 +677,11 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
             } catch (Exception e) {
                 Log.e(TAG, "检查TTS可用性时发生异常", e);
             } finally {
-                // 核心修复：安全地关闭临时实例
                 if (ttsHolder[0] != null) {
                     try {
                         ttsHolder[0].stop();
                         ttsHolder[0].shutdown();
-                        ttsHolder[0] = null; // 彻底释放
+                        ttsHolder[0] = null;
                     } catch (Exception e) {
                         Log.e(TAG, "关闭临时TTS失败", e);
                     }
@@ -729,7 +693,6 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        // 停止语音并释放资源
         if (speechService != null) {
             speechService.stopSpeaking();
         }
@@ -738,7 +701,6 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
     @Override
     protected void onPause() {
         super.onPause();
-        // 暂停语音朗读
         if (speechService != null && speechService.isSpeaking()) {
             speechService.stopSpeaking();
         }

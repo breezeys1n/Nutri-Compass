@@ -13,7 +13,7 @@ public class UnifiedConfig {
     private static final String TAG = "UnifiedConfig";
     private static final String PREF_NAME = "network_config";
     private static final String KEY_SERVER_IP = "server_ip";
-    private static final String DEFAULT_IP = "10.135.25.235";
+    private static final String DEFAULT_IP = "10.138.79.96";
 
     private static UnifiedConfig instance;
     private Context context;

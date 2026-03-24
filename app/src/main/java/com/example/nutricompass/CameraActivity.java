@@ -190,7 +190,7 @@ public class CameraActivity extends AppCompatActivity {
                         tvProgressPercent.setText("100%");
                         progressBar.setProgress(100);
 
-                        //new RecipeDatabase(this).addRecipe(recipe);
+                        new RecipeDatabase(this).addRecipe(recipe);
 
                         new Handler().postDelayed(() -> navigateToResult(recipe), 800);
                     } else {
@@ -239,7 +239,7 @@ public class CameraActivity extends AppCompatActivity {
 
     private void navigateToResult(Recipe recipe) {
         Intent resultIntent = new Intent(CameraActivity.this, RecipeResultActivity.class);
-        /*resultIntent.putExtra("recipe_name", recipe.getName());
+        resultIntent.putExtra("recipe_name", recipe.getName());
         resultIntent.putExtra("recipe_description", recipe.getDescription());
         resultIntent.putExtra("recipe_reason", recipe.getReason());
         resultIntent.putExtra("recipe_weather", recipe.getWeatherCondition());
@@ -265,8 +265,7 @@ public class CameraActivity extends AppCompatActivity {
             resultIntent.putExtra("recipe_cooking_tips", tips);
         }
 
-        resultIntent.putExtra("recipe_difficulty_num", recipe.getDifficulty());*/
-        resultIntent.putExtra("recipe", recipe);
+        resultIntent.putExtra("recipe_difficulty_num", recipe.getDifficulty());
         startActivity(resultIntent);
         finish();
     }

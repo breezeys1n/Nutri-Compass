@@ -13,12 +13,8 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Scanner;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 
 public class RecipeAnalyzer {
     private static final String TAG = "RecipeAnalyzer_Logic";
@@ -38,7 +34,7 @@ public class RecipeAnalyzer {
     // 带 Context 的构造器
     public RecipeAnalyzer(Context context) {
         this.context = context.getApplicationContext();
-        this.unifiedConfig = UnifiedConfig.getInstance(context); // 初始化 UnifiedConfig
+        this.unifiedConfig = UnifiedConfig.getInstance(context);
         this.knowledgeGraphApi = new KnowledgeGraphAPI();
         loadKnowledgeGraphAsync();
     }
@@ -101,7 +97,6 @@ public class RecipeAnalyzer {
                         if (!ingredientNames.isEmpty()) {
                             ragReference.append("食材：\n");
                             for (String name : ingredientNames) {
-
                                 ragReference.append("  - ").append(name).append("\n");
                             }
                         }
@@ -220,6 +215,19 @@ public class RecipeAnalyzer {
     }
 
     private Recipe parseRecipeFromJson(String jsonStr, String cond, String weather) throws Exception {
+        // ==================== 修复中文标点问题 ====================
+        // 将中文逗号替换为英文逗号
+        jsonStr = jsonStr.replace("，", ",");
+        // 将中文冒号替换为英文冒号
+        jsonStr = jsonStr.replace("：", ":");
+        // 将中文引号替换为英文引号
+        jsonStr = jsonStr.replace("“", "\"");
+        jsonStr = jsonStr.replace("”", "\"");
+        // 去掉末尾可能的多余逗号 - 修复正则表达式转义
+        jsonStr = jsonStr.replaceAll(",\\s*\\}", "}");
+        jsonStr = jsonStr.replaceAll(",\\s*\\]", "]");
+        // ========================================================
+
         String jsonContent = extractJsonContent(jsonStr);
         if (jsonContent == null) {
             Log.e(TAG, "无法从AI响应中提取JSON");
@@ -245,7 +253,7 @@ public class RecipeAnalyzer {
                 if (obj instanceof JSONObject) {
                     JSONObject itemObj = (JSONObject) obj;
                     String item = itemObj.optString("item", "");
-                    String amount = itemObj.optString("amount", "");
+                    String amount = parseAmountValue(itemObj.optString("amount", ""));
                     if (!item.isEmpty()) {
                         recipe.addIngredient(item + (!amount.isEmpty() ? " (" + amount + ")" : ""));
                     }
@@ -302,11 +310,28 @@ public class RecipeAnalyzer {
         return recipe;
     }
 
+    /**
+     * 解析 amount 值，处理带单位的格式如 "200g", "1个", "5克" 等
+     */
+    private String parseAmountValue(String amount) {
+        if (amount == null || amount.isEmpty()) {
+            return "";
+        }
+        // 如果已经是纯数字，加上 "g"
+        if (amount.matches("\\d+")) {
+            return amount + "g";
+        }
+        return amount;
+    }
+
     private double parseNutritionValue(String valueWithUnit) {
         if (valueWithUnit == null || valueWithUnit.trim().isEmpty()) {
             return 0.0;
         }
         try {
+            // 先处理中文标点
+            valueWithUnit = valueWithUnit.replace("，", ",");
+            // 提取数字部分
             String numericPart = valueWithUnit.replaceAll("[^0-9.-]", "");
             if (!numericPart.isEmpty()) {
                 return Double.parseDouble(numericPart);
@@ -340,6 +365,7 @@ public class RecipeAnalyzer {
         r.setDescription(msg);
         return r;
     }
+
     public void generateFromMigration(String ingredients,
                                       String userGoal,
                                       String userCondition,
