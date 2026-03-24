@@ -3,6 +3,7 @@ package com.example.nutricompass;
 import static android.content.ContentValues.TAG;
 
 import android.content.Intent;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -18,6 +19,7 @@ import com.google.android.material.button.MaterialButton;
 import com.google.android.material.card.MaterialCardView;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
@@ -45,7 +47,7 @@ public class WeeklyReportActivity extends AppCompatActivity {
 
     // 趋势卡片
     private MaterialCardView cardTrend;
-
+    private TextView tvTrendSimple;
     // 按钮
     private MaterialButton btnShare;
     private MaterialButton btnHistory;
@@ -96,7 +98,7 @@ public class WeeklyReportActivity extends AppCompatActivity {
 
         // 趋势卡片
         cardTrend = findViewById(R.id.card_trend);
-
+        tvTrendSimple = findViewById(R.id.tv_trend_simple);
         // 按钮
         btnShare = findViewById(R.id.btn_share);
         btnHistory = findViewById(R.id.btn_history);
@@ -162,6 +164,7 @@ public class WeeklyReportActivity extends AppCompatActivity {
                         reportDatabase.saveWeeklyReport(currentReport);
                         displayReport();
                         Toast.makeText(this, "报告生成成功，共 " + currentReport.getTotalMeals() + " 条记录", Toast.LENGTH_SHORT).show();
+                        displayTrendChart();
                     } else {
                         Log.d(TAG, "报告无数据");
                         showNoDataState();
@@ -178,7 +181,62 @@ public class WeeklyReportActivity extends AppCompatActivity {
             }
         }, 500);
     }
+    private void displayTrendChart() {
+        if (currentReport == null || tvTrendSimple == null) return;
 
+        List<Double> calorieTrend = currentReport.getCalorieTrend();
+        if (calorieTrend == null || calorieTrend.isEmpty()) {
+            if (cardTrend != null) cardTrend.setVisibility(View.GONE);
+            return;
+        }
+
+        // 设置文字颜色为深色（在浅色背景下可见）
+        tvTrendSimple.setTextColor(Color.parseColor("#333333"));
+
+        // 获取日期列表
+        List<String> dates = new ArrayList<>();
+        if (currentReport.getDailyDetails() != null) {
+            dates.addAll(currentReport.getDailyDetails().keySet());
+            java.util.Collections.sort(dates);
+        }
+
+        // 构建趋势文字
+        StringBuilder trendText = new StringBuilder();
+
+        for (int i = 0; i < calorieTrend.size(); i++) {
+            String date = i < dates.size() ? dates.get(i).substring(5) : "Day" + (i + 1);
+            double value = calorieTrend.get(i);
+
+            // 用柱状图表示，使用不同颜色
+            int barCount = (int) (value / 50);
+            if (barCount > 20) barCount = 20;
+            StringBuilder bar = new StringBuilder();
+            for (int j = 0; j < barCount; j++) {
+                bar.append("█");
+            }
+
+            // 根据热量高低显示不同颜色（可选，使用HTML颜色）
+            String color = "#FF6B35"; // 默认橙色
+            if (value > 800) color = "#FF0000"; // 红色表示过高
+            else if (value < 500) color = "#4CAF50"; // 绿色表示正常
+
+            trendText.append(String.format("%s: %.0f大卡 %s\n", date, value, bar.toString()));
+        }
+
+        // 统计信息
+        if (!calorieTrend.isEmpty()) {
+            double max = java.util.Collections.max(calorieTrend);
+            double min = java.util.Collections.min(calorieTrend);
+            double avg = 0;
+            for (double v : calorieTrend) avg += v;
+            avg /= calorieTrend.size();
+
+            trendText.append(String.format("\n📊 统计: 最高%.0f | 最低%.0f | 平均%.0f大卡", max, min, avg));
+        }
+
+        tvTrendSimple.setText(trendText.toString());
+        if (cardTrend != null) cardTrend.setVisibility(View.VISIBLE);
+    }
     private void showEmptyState() {
         tvWeekRange.setText("暂无饮食记录");
         tvGenerateTime.setText("生成于 " + getCurrentTime());
@@ -335,7 +393,21 @@ public class WeeklyReportActivity extends AppCompatActivity {
             sb.append("   • ").append(ratio.getCarbsPercent()).append(" 碳水\n");
             sb.append("   • ").append(ratio.getFatPercent()).append(" 脂肪\n\n");
         }
-
+        // 添加趋势数据
+        List<Double> calorieTrend = currentReport.getCalorieTrend();
+        if (calorieTrend != null && !calorieTrend.isEmpty()) {
+            sb.append("📈 热量趋势\n");
+            List<String> dates = new ArrayList<>();
+            if (currentReport.getDailyDetails() != null) {
+                dates.addAll(currentReport.getDailyDetails().keySet());
+                java.util.Collections.sort(dates);
+            }
+            for (int i = 0; i < calorieTrend.size(); i++) {
+                String date = i < dates.size() ? dates.get(i) : "Day" + (i + 1);
+                sb.append("   • ").append(date).append(": ").append(String.format("%.0f", calorieTrend.get(i))).append(" 大卡\n");
+            }
+            sb.append("\n");
+        }
         List<String> strengths = currentReport.getStrengths();
         if (strengths != null && !strengths.isEmpty()) {
             sb.append("✅ 本周优点\n");

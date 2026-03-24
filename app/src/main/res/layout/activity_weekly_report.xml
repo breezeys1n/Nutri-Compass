@@ -326,16 +326,15 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- 趋势图卡片（占位，后续可用MPAndroidChart等库） -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/card_trend"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="16dp"
                 app:cardCornerRadius="12dp"
                 app:cardElevation="4dp"
-                app:cardBackgroundColor="@color/white"
-                android:layout_marginBottom="12dp"
-                android:visibility="gone">
+                app:cardBackgroundColor="#FFF9F0">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -344,23 +343,26 @@
                     android:padding="16dp">
 
                     <TextView
-                        android:layout_width="match_parent"
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="📉 七日趋势"
+                        android:text="📈 热量趋势"
                         android:textSize="16sp"
                         android:textStyle="bold"
-                        android:textColor="@color/primary_green"
-                        android:layout_marginBottom="12dp" />
+                        android:textColor="#FF6B35"
+                        android:layout_marginBottom="12dp"/>
 
-                    <!-- 这里可以放一个简单的趋势图占位 -->
+                    <!-- 用简单的 TextView 显示趋势 -->
                     <TextView
+                        android:id="@+id/tv_trend_simple"
                         android:layout_width="match_parent"
-                        android:layout_height="80dp"
-                        android:text="[趋势图区域]"
-                        android:gravity="center"
-                        android:textColor="@color/text_secondary"
-                        android:background="#F5F5F5" />
+                        android:layout_height="wrap_content"
+                        android:textSize="14sp"
+                        android:lineSpacingExtra="6dp"
+                        android:textColor="#333333"
+                        android:fontFamily="monospace"/>
+
                 </LinearLayout>
+
             </com.google.android.material.card.MaterialCardView>
 
             <!-- 优点卡片 -->

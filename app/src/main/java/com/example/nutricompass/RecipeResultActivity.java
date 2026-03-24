@@ -56,10 +56,23 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
 
         Recipe recipe = (Recipe) getIntent().getSerializableExtra("recipe");
         if (recipe != null) {
+            this.currentRecipe = recipe;
+            displayRecipeFromObject(recipe);
+
+            // 只在首次生成时保存一次，且不是从风味改良来的
+            boolean isFromMigration = getIntent().getBooleanExtra("is_from_migration", false);
+            if (!isFromMigration) {
+                saveRecipeToHistory(recipe);
+            }
+        } else {
+            // 兼容旧的散装数据方式
+            displayRecipeInfo();
+        }
+        /*if (recipe != null) {
             displayRecipeFromObject(recipe);
         } else {
             displayRecipeInfo();
-        }
+        }*/
 
         displayUserInfo();
         checkTTSAvailability();
@@ -187,12 +200,19 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
                         runOnUiThread(() -> {
                             progressDialog.dismiss();
 
-                            // 显示最终食谱
+                            /*// 显示最终食谱
                             displayNewRecipe(finalRecipe, cuisine);
 
                             Toast.makeText(RecipeResultActivity.this,
                                     "已生成 " + cuisine + " 风味的完整食谱！",
-                                    Toast.LENGTH_SHORT).show();
+                                    Toast.LENGTH_SHORT).show();*/
+                            // 跳转到新页面显示最终食谱，并标记为来自改良
+                            Intent intent = new Intent(RecipeResultActivity.this,
+                                    RecipeResultActivity.class);
+                            intent.putExtra("recipe", finalRecipe);
+                            intent.putExtra("is_from_migration", true);  // 标记来自改良
+                            startActivity(intent);
+                            finish();  // 关闭当前页面
                         });
                     }
 
@@ -418,9 +438,9 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
         // 保存到 currentRecipe
         this.currentRecipe = recipe;
 
-        saveRecipeToHistory(recipeName, recipeDescription, recipeReason,
+        /*saveRecipeToHistory(recipeName, recipeDescription, recipeReason,
                 recipeNutrition, ingredients, steps, prepTime,
-                cookTime, difficulty, cookingTips);
+                cookTime, difficulty, cookingTips);*/
     }
 
     private void displayRecipeFromObject(Recipe recipe) {
