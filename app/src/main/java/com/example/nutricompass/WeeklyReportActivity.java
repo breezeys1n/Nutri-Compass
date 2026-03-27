@@ -43,7 +43,7 @@ public class WeeklyReportActivity extends AppCompatActivity {
     // 分析和建议
     private TextView tvStrengths;
     private TextView tvSuggestions;
-    // 移除 tvWeaknesses 的声明
+
 
     // 趋势卡片
     private MaterialCardView cardTrend;
@@ -94,7 +94,7 @@ public class WeeklyReportActivity extends AppCompatActivity {
         // 分析和建议 - 只初始化布局中存在的控件
         tvStrengths = findViewById(R.id.tv_strengths);
         tvSuggestions = findViewById(R.id.tv_suggestions);
-        // 移除 tvWeaknesses 的初始化
+
 
         // 趋势卡片
         cardTrend = findViewById(R.id.card_trend);
@@ -145,7 +145,7 @@ public class WeeklyReportActivity extends AppCompatActivity {
                 String startDate = dateRange[0];
                 String endDate = dateRange[1];
 
-                // 如果数据量较少，使用所有数据的范围
+
                 if (allRecipes.size() < 7) {
                     Log.d(TAG, "数据量较少，使用所有数据的范围");
                 } else {
@@ -190,7 +190,7 @@ public class WeeklyReportActivity extends AppCompatActivity {
             return;
         }
 
-        // 设置文字颜色为深色（在浅色背景下可见）
+
         tvTrendSimple.setTextColor(Color.parseColor("#333333"));
 
         // 获取日期列表
@@ -215,7 +215,7 @@ public class WeeklyReportActivity extends AppCompatActivity {
                 bar.append("█");
             }
 
-            // 根据热量高低显示不同颜色（可选，使用HTML颜色）
+            // 根据热量高低显示不同颜色
             String color = "#FF6B35"; // 默认橙色
             if (value > 800) color = "#FF0000"; // 红色表示过高
             else if (value < 500) color = "#4CAF50"; // 绿色表示正常

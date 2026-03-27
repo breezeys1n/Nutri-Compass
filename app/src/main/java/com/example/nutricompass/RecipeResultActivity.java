@@ -336,7 +336,6 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
             }
         }
     }
-    // ============================================================
 
     private void initViews() {
         tvRecipeName = findViewById(R.id.tv_recipe_name);
@@ -414,15 +413,14 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
 
         this.currentRecipe = recipe;
 
-        // ==================== 修改：使用重复检查方法 ====================
+        // ==================== 使用重复检查方法 ====================
         saveRecipeToHistoryIfNotExists(recipe);
-        // ============================================================
     }
 
     private void displayRecipeFromObject(Recipe recipe) {
         this.currentRecipe = recipe;
 
-        // ==================== 新增：获取当前食谱的数据库ID ====================
+        // ==================== 获取当前食谱的数据库ID ====================
         RecipeDatabase db = new RecipeDatabase(this);
         List<Recipe> allRecipes = db.getAllRecipes();
         for (Recipe r : allRecipes) {
@@ -433,7 +431,6 @@ public class RecipeResultActivity extends AppCompatActivity implements SpeechSer
                 break;
             }
         }
-        // ==================================================================
 
         tvRecipeName.setText(recipe.getTitle());
         tvRecipeDescription.setText(recipe.getDescription());

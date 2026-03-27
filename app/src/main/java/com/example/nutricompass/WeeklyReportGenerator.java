@@ -38,11 +38,9 @@ public class WeeklyReportGenerator {
         // 设置为上周
         calendar.add(Calendar.WEEK_OF_YEAR, -1);
 
-        // 设置为一周的第一天（周一）
         calendar.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY);
         String startDate = dateFormat.format(calendar.getTime());
 
-        // 设置为一周的最后一天（周日）
         calendar.add(Calendar.DAY_OF_WEEK, 6);
         String endDate = dateFormat.format(calendar.getTime());
 
@@ -64,7 +62,6 @@ public class WeeklyReportGenerator {
 
         Log.d(TAG, "找到 " + recipes.size() + " 条记录");
 
-        // 打印每条记录的信息以便调试
         for (Recipe r : recipes) {
             Log.d(TAG, "记录: " + r.getDate() + " - " + r.getTitle() + " - " + r.getCalories() + "大卡");
         }
@@ -96,48 +93,6 @@ public class WeeklyReportGenerator {
         report.setDailyDetails(generateDailyDetails(dailyRecipes));
 
         return report;
-    }
-
-    /**
-     * 生成指定周的报告（新增）
-     * @param year 年份
-     * @param weekOfYear 第几周（1-52）
-     */
-    public WeeklyReport generateWeekReport(int year, int weekOfYear) {
-        Calendar calendar = Calendar.getInstance(Locale.CHINA);
-        calendar.set(Calendar.YEAR, year);
-        calendar.set(Calendar.WEEK_OF_YEAR, weekOfYear);
-
-        // 设置为一周的第一天（周一）
-        calendar.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY);
-        String startDate = dateFormat.format(calendar.getTime());
-
-        // 设置为一周的最后一天（周日）
-        calendar.add(Calendar.DAY_OF_WEEK, 6);
-        String endDate = dateFormat.format(calendar.getTime());
-
-        Log.d(TAG, "生成第" + weekOfYear + "周报告: " + startDate + " 至 " + endDate);
-
-        return generateReport(startDate, endDate);
-    }
-
-    /**
-     * 生成当前周报告（新增）
-     */
-    public WeeklyReport generateCurrentWeekReport() {
-        Calendar calendar = Calendar.getInstance(Locale.CHINA);
-
-        // 设置为一周的第一天（周一）
-        calendar.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY);
-        String startDate = dateFormat.format(calendar.getTime());
-
-        // 设置为一周的最后一天（周日）
-        calendar.add(Calendar.DAY_OF_WEEK, 6);
-        String endDate = dateFormat.format(calendar.getTime());
-
-        Log.d(TAG, "生成当前周报告: " + startDate + " 至 " + endDate);
-
-        return generateReport(startDate, endDate);
     }
 
     /**
@@ -415,23 +370,6 @@ public class WeeklyReportGenerator {
 
         return report;
     }
-
-    /**
-     * 获取本周日期范围
-     */
-    public String[] getCurrentWeekRange() {
-        Calendar calendar = Calendar.getInstance(Locale.CHINA);
-        String[] range = new String[2];
-
-        calendar.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY);
-        range[0] = dateFormat.format(calendar.getTime());
-
-        calendar.add(Calendar.DAY_OF_WEEK, 6);
-        range[1] = dateFormat.format(calendar.getTime());
-
-        return range;
-    }
-
     /**
      * 获取上周日期范围
      */
@@ -447,29 +385,5 @@ public class WeeklyReportGenerator {
         range[1] = dateFormat.format(calendar.getTime());
 
         return range;
-    }
-
-    /**
-     * 获取指定日期的周范围（新增）
-     */
-    public String[] getWeekRangeByDate(String dateStr) {
-        try {
-            Date date = dateFormat.parse(dateStr);
-            Calendar calendar = Calendar.getInstance(Locale.CHINA);
-            calendar.setTime(date);
-
-            // 设置到本周的周一
-            calendar.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY);
-            String startDate = dateFormat.format(calendar.getTime());
-
-            // 设置到本周的周日
-            calendar.add(Calendar.DAY_OF_WEEK, 6);
-            String endDate = dateFormat.format(calendar.getTime());
-
-            return new String[]{startDate, endDate};
-        } catch (ParseException e) {
-            e.printStackTrace();
-            return getCurrentWeekRange();
-        }
     }
 }

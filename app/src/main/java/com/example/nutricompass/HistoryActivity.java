@@ -45,7 +45,7 @@ public class HistoryActivity extends AppCompatActivity {
         btnWeeklyReport = findViewById(R.id.btn_weekly_report);
         emptyState = findViewById(R.id.empty_state);
 
-        // 设置空状态文本（字体大小已经在布局中定义，这里只设置内容）
+        // 设置空状态文本
         tvEmptyHistory.setText("📝");
 
         loadHistory();

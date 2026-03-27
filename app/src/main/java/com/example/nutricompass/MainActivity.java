@@ -185,7 +185,6 @@ public class MainActivity extends AppCompatActivity {
      * 检查相机和定位权限
      */
     private boolean checkAndRequestPermissions() {
-        // ...（保持原有的权限检查逻辑不变）...
         List<String> listPermissionsNeeded = new ArrayList<>();
 
         // 基础权限：相机、定位、录音
@@ -194,7 +193,7 @@ public class MainActivity extends AppCompatActivity {
         listPermissionsNeeded.add(Manifest.permission.ACCESS_COARSE_LOCATION);
         listPermissionsNeeded.add(Manifest.permission.RECORD_AUDIO);
 
-        // 相册读取权限 (适配 Android 13+)
+        // 相册读取权限
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
             listPermissionsNeeded.add(Manifest.permission.READ_MEDIA_IMAGES);
         } else {
@@ -246,7 +245,6 @@ public class MainActivity extends AppCompatActivity {
     private void proceedToRecipeGeneration() {
         Intent intent = new Intent(MainActivity.this, VoiceStatusActivity.class);
 
-        // --- 核心修复：把目标传过去 ---
         if (userProfile == null) {
             userProfile = new UserProfile(this);
         }

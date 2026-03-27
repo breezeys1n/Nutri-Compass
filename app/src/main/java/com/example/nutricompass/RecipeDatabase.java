@@ -12,7 +12,7 @@ import java.util.Locale;
 public class RecipeDatabase extends SQLiteOpenHelper {
 
     private static final String DATABASE_NAME = "recipes.db";
-    private static final int DATABASE_VERSION = 4; // 升级版本以匹配新字段
+    private static final int DATABASE_VERSION = 4; // 版本
     private static final String TABLE_NAME = "recipes";
 
     // 原有字段
@@ -72,7 +72,7 @@ public class RecipeDatabase extends SQLiteOpenHelper {
         ContentValues values = new ContentValues();
         values.put(COLUMN_TITLE, recipe.getTitle());
         values.put(COLUMN_DESCRIPTION, recipe.getDescription());
-        values.put(COLUMN_REASON, recipe.getReason()); // 恢复理由保存
+        values.put(COLUMN_REASON, recipe.getReason());
         values.put(COLUMN_DATE, recipe.getDate());
 
         // 优先保存 NutritionInfo 对象中的数据
@@ -104,13 +104,13 @@ public class RecipeDatabase extends SQLiteOpenHelper {
         return db.insert(TABLE_NAME, null, values);
     }
 
-    // 修复 HistoryActivity 报错：添加 deleteRecipe
+    //添加 deleteRecipe
     public void deleteRecipe(int id) {
         SQLiteDatabase db = this.getWritableDatabase();
         db.delete(TABLE_NAME, COLUMN_ID + "=?", new String[]{String.valueOf(id)});
     }
 
-    // 修复 WeeklyReport 报错：添加 getDateRange
+    //添加 getDateRange
     public String[] getDateRange() {
         SQLiteDatabase db = this.getReadableDatabase();
         Cursor cursor = db.rawQuery("SELECT MIN(" + COLUMN_DATE + "), MAX(" + COLUMN_DATE + ") FROM " + TABLE_NAME, null);
@@ -122,7 +122,7 @@ public class RecipeDatabase extends SQLiteOpenHelper {
         return range;
     }
 
-    // 修复 WeeklyReport 报错：添加 getRecipesByDateRange
+    // 添加 getRecipesByDateRange
     public List<Recipe> getRecipesByDateRange(String startDate, String endDate) {
         List<Recipe> recipes = new ArrayList<>();
         SQLiteDatabase db = this.getReadableDatabase();
@@ -147,7 +147,6 @@ public class RecipeDatabase extends SQLiteOpenHelper {
 
     private Recipe cursorToRecipe(Cursor cursor) {
         Recipe recipe = new Recipe();
-        // 恢复你原有的 try-catch 结构逻辑
         recipe.setId(cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_ID)));
         recipe.setTitle(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_TITLE)));
         recipe.setDescription(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_DESCRIPTION)));
@@ -155,7 +154,6 @@ public class RecipeDatabase extends SQLiteOpenHelper {
         try { recipe.setReason(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_REASON))); } catch (Exception e) {}
         recipe.setDate(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_DATE)));
 
-        // 读取数值并注入 NutritionInfo (解决显示为0的关键)
         double cal = cursor.getDouble(cursor.getColumnIndexOrThrow(COLUMN_CALORIES));
         double pro = 0, carb = 0, fat = 0;
 
@@ -163,7 +161,6 @@ public class RecipeDatabase extends SQLiteOpenHelper {
         try { carb = cursor.getDouble(cursor.getColumnIndexOrThrow(COLUMN_CARBS)); } catch (Exception e) {}
         try { fat = cursor.getDouble(cursor.getColumnIndexOrThrow(COLUMN_FAT)); } catch (Exception e) {}
 
-        // 同步到 NutritionInfo 对象
         NutritionInfo ni = new NutritionInfo();
         ni.setCalories(cal);
         ni.setProtein(pro);
@@ -171,7 +168,6 @@ public class RecipeDatabase extends SQLiteOpenHelper {
         ni.setFat(fat);
         recipe.setNutrition(ni);
 
-        // 恢复你原有的设置方式
         recipe.setCalories((int) cal);
         recipe.setProtein(pro);
         recipe.setCarbs(carb);

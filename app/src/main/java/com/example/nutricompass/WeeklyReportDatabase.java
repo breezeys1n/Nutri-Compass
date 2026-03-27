@@ -110,7 +110,7 @@ public class WeeklyReportDatabase extends SQLiteOpenHelper {
         db.update(TABLE_NAME, values, COLUMN_ID + "=?", new String[]{String.valueOf(id)});
     }
 
-    // 获取所有周报告列表（用于历史查看）
+    // 获取所有周报告列表
     public List<WeeklyReport> getAllReports() {
         List<WeeklyReport> reports = new ArrayList<>();
         SQLiteDatabase db = this.getReadableDatabase();

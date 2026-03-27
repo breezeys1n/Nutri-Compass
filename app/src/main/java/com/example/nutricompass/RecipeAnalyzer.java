@@ -21,7 +21,7 @@ public class RecipeAnalyzer {
     private Context context;
     private UnifiedConfig unifiedConfig;
 
-    // 模型名称保持不变
+    // 模型名称
     private static final String CUSTOM_MODEL = "my_health_chef";
 
     private KnowledgeGraphAPI knowledgeGraphApi;
@@ -226,7 +226,6 @@ public class RecipeAnalyzer {
         // 去掉末尾可能的多余逗号 - 修复正则表达式转义
         jsonStr = jsonStr.replaceAll(",\\s*\\}", "}");
         jsonStr = jsonStr.replaceAll(",\\s*\\]", "]");
-        // ========================================================
 
         String jsonContent = extractJsonContent(jsonStr);
         if (jsonContent == null) {

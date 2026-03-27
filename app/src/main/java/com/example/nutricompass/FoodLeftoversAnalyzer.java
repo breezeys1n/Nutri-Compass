@@ -25,7 +25,6 @@ public class FoodLeftoversAnalyzer {
 
             JSONArray contentArray = new JSONArray();
 
-            // 给AI的指令：分析餐前餐后照片，计算剩余食物量
             String prompt = "请分析这两张照片：第一张是餐前食物，第二张是餐后剩余食物。\n" +
                     "餐前主要食材有：" + originalIngredients + "\n" +
                     "请根据餐后剩余食物照片，估算：\n" +

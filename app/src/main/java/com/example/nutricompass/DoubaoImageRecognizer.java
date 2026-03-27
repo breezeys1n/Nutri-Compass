@@ -14,7 +14,6 @@ public class DoubaoImageRecognizer {
     private static final String ENDPOINT_ID = "ep-20260119185948-fqfdc";
     private static final String URL_STR = "https://ark.cn-beijing.volces.com/api/v3/chat/completions";
 
-    // 修改返回值类型为 String，避免引用 FoodItem
     public String recognizeFood(String imageBase64) {
         try {
             JSONObject requestBody = new JSONObject();
@@ -25,7 +24,6 @@ public class DoubaoImageRecognizer {
             userMessage.put("role", "user");
 
             JSONArray contentArray = new JSONArray();
-            // 强力指令：只准出食材列表
             contentArray.put(new JSONObject().put("type", "text")
                     .put("text", "请仅识别图片中的主要食材，以逗号分隔返回，不要输出任何额外文字。"));
             contentArray.put(new JSONObject().put("type", "image_url")

@@ -37,7 +37,7 @@ public class HistoryAdapter extends ArrayAdapter<Recipe> {
             TextView tvDescription = convertView.findViewById(R.id.tv_recipe_description);
             TextView tvCalories = convertView.findViewById(R.id.tv_recipe_calories);
 
-            // 设置标题 - 使用 getName() 或 getTitle()
+
             String title = recipe.getTitle();
             if (title == null || title.isEmpty()) {
                 title = recipe.getName();

@@ -167,7 +167,7 @@ public class UserProfile {
     }
 
     /**
-     * 检查是否是最小信息完整（兼容旧版本）
+     * 检查是否是最小信息完整
      */
     public boolean isBasicProfileComplete() {
         return !getHeight().isEmpty() &&

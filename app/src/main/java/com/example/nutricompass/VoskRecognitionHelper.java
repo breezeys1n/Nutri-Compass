@@ -100,7 +100,6 @@ public class VoskRecognitionHelper {
 
                     if (copySuccess) {
                         mainHandler.post(() -> callback.onStatus("模型文件复制完成，正在验证..."));
-                        // 记录复制后的结构
                         logModelStructure(modelDir);
 
                         // 验证模型
@@ -253,13 +252,12 @@ public class VoskRecognitionHelper {
                 String targetFilePath = targetPath + "/" + file;
 
                 try {
-                    // 尝试打开文件，如果能打开就是文件，否则可能是目录
                     InputStream inputStream = assetManager.open(assetFilePath);
                     // 是文件
                     copyAssetFile(assetManager, assetFilePath, targetFilePath);
                     inputStream.close();
                 } catch (IOException e) {
-                    // 可能是目录，尝试递归复制
+                    // 递归复制
                     Log.d(TAG, "创建子目录: " + targetFilePath);
                     File dir = new File(targetFilePath);
                     if (!dir.exists()) {
